@@ -1,0 +1,87 @@
+module Test.MoveShip where
+
+import Daml.Script
+import DA.Time (seconds)
+import Asteria.Types
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 10
+  maxFuel = 20
+  fuelPerStep = 1
+  initialFuel = 10
+  minAsteriaDistance = 5
+
+newShip : Party -> Party -> Int -> Time -> Script (ContractId Ship)
+newShip admin pilot fuel t =
+  submitMulti [admin, pilot] [] do
+    createCmd Ship with
+      admin
+      pilot
+      gameId = "asteria-1"
+      serial = 1
+      posX = 10
+      posY = 10
+      fuel
+      lastMoveTime = t
+      config = testConfig
+      observers = []
+
+testMoveValid : Script ()
+testMoveValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  t0 <- getTime
+  shipCid <- newShip admin pilot testConfig.initialFuel t0
+  passTime (seconds 1)
+  shipCid2 <- submit pilot do
+    exerciseCmd shipCid Move with deltaX = 5, deltaY = 0
+  Some ship <- queryContractId pilot shipCid2
+  assert (ship.posX == 15 && ship.posY == 10)
+  assert (ship.fuel == testConfig.initialFuel - 5)
+  now <- getTime
+  assert (ship.lastMoveTime == now)
+
+testMoveWithoutFuel : Script ()
+testMoveWithoutFuel = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  t0 <- getTime
+  shipCid <- newShip admin pilot 3 t0
+  passTime (seconds 10)
+  -- Costo 5 con combustible 3
+  submitMustFail pilot do
+    exerciseCmd shipCid Move with deltaX = 5, deltaY = 0
+
+testMoveTooFast : Script ()
+testMoveTooFast = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  t0 <- getTime
+  shipCid <- newShip admin pilot 100 t0
+  passTime (seconds 1)
+  -- 15 unidades en 1 segundo con MAX_SPEED 10
+  submitMustFail pilot do
+    exerciseCmd shipCid Move with deltaX = 15, deltaY = 0
+
+testMoveWrongPilot : Script ()
+testMoveWrongPilot = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  other <- allocateParty "Other"
+  t0 <- getTime
+  shipCid <- newShip admin pilot testConfig.initialFuel t0
+  passTime (seconds 1)
+  submitMustFail other do
+    exerciseCmd shipCid Move with deltaX = 1, deltaY = 0
+
+testAdminCannotArchive : Script ()
+testAdminCannotArchive = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  t0 <- getTime
+  shipCid <- newShip admin pilot testConfig.initialFuel t0
+  -- La nave tiene dos signatories: el admin solo no puede archivarla
+  submitMustFail admin do
+    archiveCmd shipCid

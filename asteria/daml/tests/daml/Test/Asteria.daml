@@ -1,0 +1,144 @@
+module Test.Asteria where
+
+import Daml.Script
+import Asteria.Asteria
+
+allocateParties : Script (Party, Party, Party)
+allocateParties = do
+  admin <- allocateParty "Admin"
+  player <- allocateParty "Player"
+  other <- allocateParty "Other"
+  pure (admin, player, other)
+
+newGame : Party -> Script (ContractId Game)
+newGame admin =
+  submit admin do
+    createCmd Game with
+      admin
+      gameId = "asteria-1"
+      shipCounter = 0
+      shipMintFee = 0.0
+      observers = []
+
+testCreateGame : Script ()
+testCreateGame = do
+  (admin, _, other) <- allocateParties
+  gameCid <- newGame admin
+  -- Un tercero no puede crear un contrato con el admin como signatory
+  submitMustFail other do
+    createCmd Game with
+      admin
+      gameId = "asteria-fake"
+      shipCounter = 0
+      shipMintFee = 0.0
+      observers = []
+  Some game <- queryContractId admin gameCid
+  assert (game.shipCounter == 0 && game.gameId == "asteria-1")
+
+testRegisterShip : Script ()
+testRegisterShip = do
+  (admin, _, other) <- allocateParties
+  gameCid <- newGame admin
+  (serial, _) <- submit admin do
+    exerciseCmd gameCid RegisterShip
+  assert (serial == 1)
+  games <- query @Game admin
+  game <- case games of
+    [(_, g)] -> pure g
+    _ -> fail "se esperaba un Game activo"
+  assert (game.shipCounter == 1)
+  -- Solo el admin controla RegisterShip
+  submitMustFail other do
+    exerciseCmd gameCid RegisterShip
+
+testPayout : Script ()
+testPayout = do
+  (admin, player, other) <- allocateParties
+  poolCid <- submit admin do
+    createCmd PrizePool with
+      admin
+      gameId = "asteria-1"
+      pot = 100.0
+      maxAsteriaMining = 50
+      observers = []
+  -- Solo el admin controla Payout
+  submitMustFail other do
+    exerciseCmd poolCid Payout with winner = other
+  poolCid2 <- submit admin do
+    exerciseCmd poolCid Payout with winner = player
+  Some pool <- queryContractId admin poolCid2
+  assert (pool.pot == 50.0)
+  tokens <- query @GameToken player
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.owner == player && token.amount == 50.0)
+
+testPayoutFull : Script ()
+testPayoutFull = do
+  (admin, player, _) <- allocateParties
+  poolCid <- submit admin do
+    createCmd PrizePool with
+      admin
+      gameId = "asteria-1"
+      pot = 100.0
+      maxAsteriaMining = 100
+      observers = []
+  poolCid2 <- submit admin do
+    exerciseCmd poolCid Payout with winner = player
+  Some pool <- queryContractId admin poolCid2
+  assert (pool.pot == 0.0)
+  tokens <- query @GameToken player
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.amount == 100.0)
+
+testConsumeGame : Script ()
+testConsumeGame = do
+  (admin, _, other) <- allocateParties
+  gameCid <- newGame admin
+  poolCid <- submit admin do
+    createCmd PrizePool with
+      admin
+      gameId = "asteria-1"
+      pot = 10.0
+      maxAsteriaMining = 50
+      observers = []
+  -- Solo el admin controla ConsumeGame
+  submitMustFail other do
+    exerciseCmd gameCid ConsumeGame
+  submit admin do
+    exerciseCmd gameCid ConsumeGame
+  submit admin do
+    exerciseCmd poolCid ConsumePool
+  games <- query @Game admin
+  pools <- query @PrizePool admin
+  assert (null games && null pools)
+
+testTransferToken : Script ()
+testTransferToken = do
+  (admin, player, other) <- allocateParties
+  -- Un tercero no puede emitir un token a nombre del admin
+  submitMustFail other do
+    createCmd GameToken with
+      issuer = admin
+      owner = other
+      gameId = "asteria-1"
+      amount = 5.0
+  tokenCid <- submit admin do
+    createCmd GameToken with
+      issuer = admin
+      owner = player
+      gameId = "asteria-1"
+      amount = 10.0
+  -- Solo el dueno controla Transfer
+  submitMustFail other do
+    exerciseCmd tokenCid Transfer with newOwner = other
+  submit player do
+    exerciseCmd tokenCid Transfer with newOwner = other
+  tokens <- query @GameToken other
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.owner == other && token.amount == 10.0)

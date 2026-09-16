@@ -1,0 +1,17 @@
+# Dependencias y build del CLI
+asteria/cli/node_modules/
+asteria/cli/dist/
+
+# Estado local del CLI
+asteria-state.json
+
+# Build de Daml: se ignoran los caches y se conserva el DAR de contratos
+asteria/daml/tests/.daml/
+asteria/daml/contracts/.daml/*
+!asteria/daml/contracts/.daml/dist
+asteria/daml/contracts/.daml/dist/*
+!asteria/daml/contracts/.daml/dist/*.dar
+
+# Archivos varios
+.DS_Store
+*.log

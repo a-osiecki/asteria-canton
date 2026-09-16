@@ -1,0 +1,114 @@
+module Asteria.Spacetime where
+
+import DA.Time
+import Asteria.Types
+import Asteria.Utils
+import Asteria.Asteria
+import Asteria.Pellet
+
+-- Reemplaza el validador spacetime y su datum (design-canton.md, etapas 3, 5 y 6).
+template Ship
+  with
+    admin : Party
+    pilot : Party
+    gameId : Text
+    serial : Int
+    posX : Int
+    posY : Int
+    fuel : Int
+    lastMoveTime : Time
+    config : ShipConfig
+    observers : [Party]
+  where
+    signatory admin, pilot
+    observer observers
+
+    choice Move : ContractId Ship
+      with
+        deltaX : Int
+        deltaY : Int
+      controller pilot
+      do
+        now <- getTime
+        let dist = distance deltaX deltaY
+        let cost = requiredFuel dist config.fuelPerStep
+        -- Regla original: hay combustible suficiente
+        assert (fuel >= cost)
+        -- Regla original: distancia / tiempo <= MAX_SPEED
+        let elapsed = convertRelTimeToMicroseconds (subTime now lastMoveTime)
+        assert (dist * 1000000 <= config.maxSpeed * elapsed)
+        -- Regla original: se actualizan posicion, fuel y last_move_latest_time
+        create this with
+          posX = posX + deltaX
+          posY = posY + deltaY
+          fuel = fuel - cost
+          lastMoveTime = now
+
+    -- Regla original (GatherFuel): posicion del pellet igual a la de la nave
+    -- Regla original (GatherFuel): la carga resultante <= MAX_SHIP_FUEL
+    choice GatherFuel : ContractId Ship
+      with
+        pelletCid : ContractId Pellet
+        amount : Int
+        prizeAmount : Decimal
+      controller pilot
+      do
+        pellet <- fetch pelletCid
+        assert (pellet.posX == posX && pellet.posY == posY)
+        assert (fuel + amount <= config.maxFuel)
+        _ <- exercise pelletCid Provide with recipient = pilot, amount, prizeAmount
+        create this with fuel = fuel + amount
+
+    -- Regla original (MineAsteria): la nave esta en (0,0)
+    choice Mine : ContractId PrizePool
+      with
+        poolCid : ContractId PrizePool
+      controller pilot
+      do
+        assert (posX == 0 && posY == 0)
+        exercise poolCid Payout with winner = pilot
+
+    -- Regla original (Quit): se archiva la nave
+    choice Quit : ()
+      controller pilot
+      do
+        return ()
+
+-- Reemplaza la ShipyardPolicy (design-canton.md, etapa 4).
+template Shipyard
+  with
+    admin : Party
+    gameId : Text
+    gameCid : ContractId Game
+    config : ShipConfig
+    observers : [Party]
+  where
+    signatory admin
+    observer observers
+
+    choice MintShip : ContractId Ship
+      with
+        pilot : Party
+        posX : Int
+        posY : Int
+      controller pilot
+      do
+        now <- getTime
+        -- Regla original: distancia a (0,0) >= MIN_ASTERIA_DISTANCE
+        assert (distance posX posY >= config.minAsteriaDistance)
+        -- Regla original: el nombre de la nave usa el contador
+        (serial, gameCid2) <- exercise gameCid RegisterShip
+        shipCid <- create Ship with
+          admin
+          pilot
+          gameId
+          serial
+          posX
+          posY
+          fuel = config.initialFuel
+          lastMoveTime = now
+          config
+          observers
+        -- El Game recreado deja un ContractId nuevo: se actualiza la referencia.
+        _ <- create this with gameCid = gameCid2
+        return shipCid

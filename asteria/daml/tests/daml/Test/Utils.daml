@@ -1,0 +1,18 @@
+module Test.Utils where
+
+import Daml.Script
+import Asteria.Utils
+
+testDistance : Script ()
+testDistance = do
+  assert (distance 3 4 == 7)
+  assert (distance (-3) 4 == 7)
+  assert (distance 3 (-4) == 7)
+  assert (distance (-3) (-4) == 7)
+  assert (distance 0 0 == 0)
+
+testRequiredFuel : Script ()
+testRequiredFuel = do
+  assert (requiredFuel 7 2 == 14)
+  assert (requiredFuel 0 5 == 0)
+  assert (requiredFuel 3 0 == 0)

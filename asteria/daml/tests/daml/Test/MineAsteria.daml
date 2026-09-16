@@ -1,0 +1,78 @@
+module Test.MineAsteria where
+
+import Daml.Script
+import Asteria.Types
+import Asteria.Asteria
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 10
+  maxFuel = 20
+  fuelPerStep = 1
+  initialFuel = 10
+  minAsteriaDistance = 1
+
+newPool : Party -> Decimal -> [Party] -> Script (ContractId PrizePool)
+newPool admin pot observers =
+  submit admin do
+    createCmd PrizePool with
+      admin
+      gameId = "asteria-1"
+      pot
+      maxAsteriaMining = 50
+      observers
+
+newShipAt : Party -> Party -> Int -> Int -> [Party] -> Script (ContractId Ship)
+newShipAt admin pilot x y observers = do
+  t <- getTime
+  submitMulti [admin, pilot] [] do
+    createCmd Ship with
+      admin
+      pilot
+      gameId = "asteria-1"
+      serial = 1
+      posX = x
+      posY = y
+      fuel = testConfig.initialFuel
+      lastMoveTime = t
+      config = testConfig
+      observers
+
+testMineValid : Script ()
+testMineValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  poolCid <- newPool admin 100.0 [pilot]
+  shipCid <- newShipAt admin pilot 0 0 []
+  poolCid2 <- submit pilot do
+    exerciseCmd shipCid Mine with poolCid
+  Some pool <- queryContractId admin poolCid2
+  assert (pool.pot == 50.0)
+  tokens <- query @GameToken pilot
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.amount == 50.0)
+  ships <- query @Ship admin
+  assert (null ships)
+
+testMineNotAtCenter : Script ()
+testMineNotAtCenter = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  poolCid <- newPool admin 100.0 [pilot]
+  shipCid <- newShipAt admin pilot 1 1 []
+  submitMustFail pilot do
+    exerciseCmd shipCid Mine with poolCid
+
+testMineWrongPilot : Script ()
+testMineWrongPilot = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  other <- allocateParty "Other"
+  -- Otro piloto ve la nave y el pozo, pero no controla Mine
+  poolCid <- newPool admin 100.0 [pilot, other]
+  shipCid <- newShipAt admin pilot 0 0 [other]
+  submitMustFail other do
+    exerciseCmd shipCid Mine with poolCid

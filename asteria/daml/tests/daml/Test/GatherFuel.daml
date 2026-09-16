@@ -1,0 +1,93 @@
+module Test.GatherFuel where
+
+import Daml.Script
+import Asteria.Types
+import Asteria.Asteria (GameToken)
+import Asteria.Pellet
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 10
+  maxFuel = 20
+  fuelPerStep = 1
+  initialFuel = 5
+  minAsteriaDistance = 1
+
+newShip : Party -> Party -> Int -> Script (ContractId Ship)
+newShip admin pilot fuel = do
+  t <- getTime
+  submitMulti [admin, pilot] [] do
+    createCmd Ship with
+      admin
+      pilot
+      gameId = "asteria-1"
+      serial = 1
+      posX = 5
+      posY = 5
+      fuel
+      lastMoveTime = t
+      config = testConfig
+      observers = []
+
+newPelletAt : Party -> Int -> Int -> Int -> Decimal -> [Party] -> Script (ContractId Pellet)
+newPelletAt admin x y fuel prize observers =
+  submit admin do
+    createCmd Pellet with
+      admin
+      gameId = "asteria-1"
+      posX = x
+      posY = y
+      fuel
+      prize
+      observers
+
+testGatherValid : Script ()
+testGatherValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  shipCid <- newShip admin pilot 5
+  pelletCid <- newPelletAt admin 5 5 10 3.0 [pilot]
+  shipCid2 <- submit pilot do
+    exerciseCmd shipCid GatherFuel with pelletCid, amount = 4, prizeAmount = 3.0
+  Some ship <- queryContractId pilot shipCid2
+  assert (ship.fuel == 9)
+  pellets <- query @Pellet admin
+  pellet <- case pellets of
+    [(_, p)] -> pure p
+    _ -> fail "se esperaba un Pellet activo"
+  assert (pellet.fuel == 6 && pellet.prize == 0.0)
+  tokens <- query @GameToken pilot
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.amount == 3.0)
+
+testGatherWrongPosition : Script ()
+testGatherWrongPosition = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  shipCid <- newShip admin pilot 5
+  pelletCid <- newPelletAt admin 7 7 10 0.0 [pilot]
+  submitMustFail pilot do
+    exerciseCmd shipCid GatherFuel with pelletCid, amount = 4, prizeAmount = 0.0
+
+testGatherOverCapacity : Script ()
+testGatherOverCapacity = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  shipCid <- newShip admin pilot 18
+  pelletCid <- newPelletAt admin 5 5 10 0.0 [pilot]
+  -- 18 + 4 = 22 supera MAX_SHIP_FUEL 20
+  submitMustFail pilot do
+    exerciseCmd shipCid GatherFuel with pelletCid, amount = 4, prizeAmount = 0.0
+
+testGatherWrongPilot : Script ()
+testGatherWrongPilot = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  other <- allocateParty "Other"
+  shipCid <- newShip admin pilot 5
+  pelletCid <- newPelletAt admin 5 5 10 0.0 [pilot]
+  submitMustFail other do
+    exerciseCmd shipCid GatherFuel with pelletCid, amount = 1, prizeAmount = 0.0

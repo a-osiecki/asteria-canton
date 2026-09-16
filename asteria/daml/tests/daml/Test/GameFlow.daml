@@ -1,0 +1,87 @@
+module Test.GameFlow where
+
+import Daml.Script
+import DA.Time (seconds)
+import Asteria.Types
+import Asteria.Asteria
+import Asteria.Pellet
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 20
+  maxFuel = 100
+  fuelPerStep = 1
+  initialFuel = 10
+  minAsteriaDistance = 5
+
+testGameFlow : Script ()
+testGameFlow = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  -- Setup
+  gameCid <- submit admin do
+    createCmd Game with
+      admin
+      gameId = "asteria-1"
+      shipCounter = 0
+      shipMintFee = 0.0
+      observers = [pilot]
+  poolCid <- submit admin do
+    createCmd PrizePool with
+      admin
+      gameId = "asteria-1"
+      pot = 100.0
+      maxAsteriaMining = 50
+      observers = [pilot]
+  yardCid <- submit admin do
+    createCmd Shipyard with
+      admin
+      gameId = "asteria-1"
+      gameCid
+      config = testConfig
+      observers = [pilot]
+  pelletCid <- submit admin do
+    createCmd Pellet with
+      admin
+      gameId = "asteria-1"
+      posX = 5
+      posY = 5
+      fuel = 50
+      prize = 0.0
+      observers = [pilot]
+  -- Mintear la nave en (10,10)
+  shipCid <- submit pilot do
+    exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
+  -- Mover a (5,5): distancia 10, costo 10
+  passTime (seconds 1)
+  shipCid2 <- submit pilot do
+    exerciseCmd shipCid Move with deltaX = -5, deltaY = -5
+  -- Juntar 20 de combustible en el pellet
+  shipCid3 <- submit pilot do
+    exerciseCmd shipCid2 GatherFuel with pelletCid, amount = 20, prizeAmount = 0.0
+  -- Mover al centro: distancia 10, costo 10
+  passTime (seconds 1)
+  shipCid4 <- submit pilot do
+    exerciseCmd shipCid3 Move with deltaX = -5, deltaY = -5
+  -- Minar el 50% del pozo
+  poolCid2 <- submit pilot do
+    exerciseCmd shipCid4 Mine with poolCid
+  Some pool <- queryContractId admin poolCid2
+  assert (pool.pot == 50.0)
+  tokens <- query @GameToken pilot
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.amount == 50.0)
+  ships <- query @Ship admin
+  assert (null ships)
+  -- Consumir el pellet restante
+  pellets <- query @Pellet admin
+  pelletCid2 <- case pellets of
+    [(cid, _)] -> pure cid
+    _ -> fail "se esperaba un Pellet activo"
+  submit admin do
+    exerciseCmd pelletCid2 Consume
+  pellets2 <- query @Pellet admin
+  assert (null pellets2)

@@ -1,0 +1,79 @@
+module Asteria.Asteria where
+
+-- Reemplaza el estado del AsteriaUtxo: contador de naves, tarifa de entrada
+-- y version del juego (design-canton.md, etapa 2).
+template Game
+  with
+    admin : Party
+    gameId : Text
+    shipCounter : Int
+    shipMintFee : Decimal
+    observers : [Party]
+  where
+    signatory admin
+    observer observers
+
+    -- Regla original (AddNewShip): el contador de naves sube en 1.
+    -- Devuelve el serial y el ContractId del Game actualizado, porque el
+    -- Shipyard guarda una referencia que debe seguir vigente.
+    choice RegisterShip : (Int, ContractId Game)
+      controller admin
+      do
+        newCid <- create this with shipCounter = shipCounter + 1
+        return (shipCounter + 1, newCid)
+
+    choice ConsumeGame : ()
+      controller admin
+      do
+        return ()
+
+-- Reemplaza la parte de value del AsteriaUtxo: el pozo de recompensas.
+template PrizePool
+  with
+    admin : Party
+    gameId : Text
+    pot : Decimal
+    maxAsteriaMining : Int
+    observers : [Party]
+  where
+    signatory admin
+    observer observers
+    ensure pot >= 0.0 && maxAsteriaMining >= 0 && maxAsteriaMining <= 100
+
+    -- Regla original (Mine): el pozo se reduce como maximo MAX_ASTERIA_MINING%
+    choice Payout : ContractId PrizePool
+      with
+        winner : Party
+      controller admin
+      do
+        let payout = (pot * intToDecimal maxAsteriaMining) / 100.0
+        assert (payout <= pot)
+        create GameToken with issuer = admin, owner = winner, gameId, amount = payout
+        create this with pot = pot - payout
+
+    choice ConsumePool : ()
+      controller admin
+      do
+        if pot > 0.0
+          then do
+            _ <- create GameToken with issuer = admin, owner = admin, gameId, amount = pot
+            return ()
+          else return ()
+
+-- Token de juego de la fase 1. Reemplaza el ADA del pozo.
+template GameToken
+  with
+    issuer : Party
+    owner : Party
+    gameId : Text
+    amount : Decimal
+  where
+    signatory issuer
+    observer owner
+
+    choice Transfer : ContractId GameToken
+      with
+        newOwner : Party
+      controller owner
+      do
+        create this with owner = newOwner

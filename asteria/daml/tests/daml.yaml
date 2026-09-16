@@ -1,0 +1,10 @@
+sdk-version: 3.5.10
+name: asteria-tests
+source: daml
+version: 0.1.0
+dependencies:
+  - daml-prim
+  - daml-stdlib
+  - daml-script
+data-dependencies:
+  - ../contracts/.daml/dist/asteria-contracts-0.1.0.dar

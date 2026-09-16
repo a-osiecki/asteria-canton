@@ -1,0 +1,9 @@
+module Asteria.Utils where
+
+-- Equivalente a utils.ak: distance (distancia Manhattan).
+distance : Int -> Int -> Int
+distance dx dy = abs dx + abs dy
+
+-- Equivalente a utils.ak: required_fuel.
+requiredFuel : Int -> Int -> Int
+requiredFuel dist fuelPerStep = dist * fuelPerStep

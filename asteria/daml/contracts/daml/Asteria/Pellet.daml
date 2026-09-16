@@ -1,0 +1,47 @@
+module Asteria.Pellet where
+
+import Asteria.Asteria (GameToken(..))
+
+-- Reemplaza el validador del pellet y su datum (design-canton.md, etapa 5).
+template Pellet
+  with
+    admin : Party
+    gameId : Text
+    posX : Int
+    posY : Int
+    fuel : Int
+    prize : Decimal
+    observers : [Party]
+  where
+    signatory admin
+    observer observers
+    ensure fuel >= 0 && prize >= 0.0
+
+    -- Regla original (Provide): la cantidad no supera el combustible
+    -- Regla original (Provide): el datum se preserva salvo cantidades
+    choice Provide : ContractId Pellet
+      with
+        recipient : Party
+        amount : Int
+        prizeAmount : Decimal
+      controller admin
+      do
+        assert (amount <= fuel)
+        assert (prizeAmount <= prize)
+        if prizeAmount > 0.0
+          then do
+            _ <- create GameToken with issuer = admin, owner = recipient, gameId, amount = prizeAmount
+            return ()
+          else return ()
+        create this with
+          fuel = fuel - amount
+          prize = prize - prizeAmount
+
+    choice Consume : ()
+      controller admin
+      do
+        if prize > 0.0
+          then do
+            _ <- create GameToken with issuer = admin, owner = admin, gameId, amount = prize
+            return ()
+          else return ()

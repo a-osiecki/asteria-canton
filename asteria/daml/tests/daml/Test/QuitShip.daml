@@ -1,0 +1,48 @@
+module Test.QuitShip where
+
+import Daml.Script
+import Asteria.Types
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 10
+  maxFuel = 20
+  fuelPerStep = 1
+  initialFuel = 10
+  minAsteriaDistance = 1
+
+newShip : Party -> Party -> Script (ContractId Ship)
+newShip admin pilot = do
+  t <- getTime
+  submitMulti [admin, pilot] [] do
+    createCmd Ship with
+      admin
+      pilot
+      gameId = "asteria-1"
+      serial = 1
+      posX = 5
+      posY = 5
+      fuel = testConfig.initialFuel
+      lastMoveTime = t
+      config = testConfig
+      observers = []
+
+testQuitValid : Script ()
+testQuitValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  shipCid <- newShip admin pilot
+  submit pilot do
+    exerciseCmd shipCid Quit
+  ships <- query @Ship admin
+  assert (null ships)
+
+testQuitWrongPilot : Script ()
+testQuitWrongPilot = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  other <- allocateParty "Other"
+  shipCid <- newShip admin pilot
+  submitMustFail other do
+    exerciseCmd shipCid Quit

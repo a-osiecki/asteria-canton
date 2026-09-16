@@ -1,0 +1,12 @@
+module Asteria.Types where
+
+-- Parametros compartidos del juego. En el original son los parametros del
+-- validador spacetime y de la shipyard policy (design-canton.md, etapa 1).
+data ShipConfig = ShipConfig
+  with
+    maxSpeed : Int
+    maxFuel : Int
+    fuelPerStep : Int
+    initialFuel : Int
+    minAsteriaDistance : Int
+  deriving (Eq, Show)

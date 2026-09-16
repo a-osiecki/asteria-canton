@@ -1,0 +1,70 @@
+module Test.ProvideFuel where
+
+import Daml.Script
+import Asteria.Asteria (GameToken)
+import Asteria.Pellet
+
+newPellet : Party -> Int -> Decimal -> Script (ContractId Pellet)
+newPellet admin fuel prize =
+  submit admin do
+    createCmd Pellet with
+      admin
+      gameId = "asteria-1"
+      posX = 5
+      posY = 5
+      fuel
+      prize
+      observers = []
+
+testProvideValid : Script ()
+testProvideValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  pelletCid <- newPellet admin 10 5.0
+  pelletCid2 <- submit admin do
+    exerciseCmd pelletCid Provide with recipient = pilot, amount = 4, prizeAmount = 2.0
+  Some pellet <- queryContractId admin pelletCid2
+  assert (pellet.fuel == 6 && pellet.prize == 3.0)
+  tokens <- query @GameToken pilot
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.amount == 2.0)
+
+testProvideTooMuchFuel : Script ()
+testProvideTooMuchFuel = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  pelletCid <- newPellet admin 10 0.0
+  submitMustFail admin do
+    exerciseCmd pelletCid Provide with recipient = pilot, amount = 11, prizeAmount = 0.0
+
+testProvideTooMuchPrize : Script ()
+testProvideTooMuchPrize = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  pelletCid <- newPellet admin 10 5.0
+  submitMustFail admin do
+    exerciseCmd pelletCid Provide with recipient = pilot, amount = 1, prizeAmount = 6.0
+
+testProvideOnlyAdmin : Script ()
+testProvideOnlyAdmin = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  pelletCid <- newPellet admin 10 0.0
+  submitMustFail pilot do
+    exerciseCmd pelletCid Provide with recipient = pilot, amount = 1, prizeAmount = 0.0
+
+testConsumePellet : Script ()
+testConsumePellet = do
+  admin <- allocateParty "Admin"
+  pelletCid <- newPellet admin 10 5.0
+  submit admin do
+    exerciseCmd pelletCid Consume
+  pellets <- query @Pellet admin
+  assert (null pellets)
+  tokens <- query @GameToken admin
+  token <- case tokens of
+    [(_, t)] -> pure t
+    _ -> fail "se esperaba un GameToken"
+  assert (token.owner == admin && token.amount == 5.0)

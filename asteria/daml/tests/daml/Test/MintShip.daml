@@ -1,0 +1,93 @@
+module Test.MintShip where
+
+import Daml.Script
+import Asteria.Types
+import Asteria.Asteria
+import Asteria.Spacetime
+
+testConfig : ShipConfig
+testConfig = ShipConfig with
+  maxSpeed = 10
+  maxFuel = 20
+  fuelPerStep = 1
+  initialFuel = 10
+  minAsteriaDistance = 5
+
+newGame : Party -> [Party] -> Script (ContractId Game)
+newGame admin observers =
+  submit admin do
+    createCmd Game with
+      admin
+      gameId = "asteria-1"
+      shipCounter = 0
+      shipMintFee = 0.0
+      observers
+
+newYard : Party -> ContractId Game -> [Party] -> Script (ContractId Shipyard)
+newYard admin gameCid observers =
+  submit admin do
+    createCmd Shipyard with
+      admin
+      gameId = "asteria-1"
+      gameCid
+      config = testConfig
+      observers
+
+testMintShipValid : Script ()
+testMintShipValid = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  gameCid <- newGame admin [pilot]
+  yardCid <- newYard admin gameCid [pilot]
+  shipCid <- submit pilot do
+    exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
+  Some ship <- queryContractId pilot shipCid
+  assert (ship.serial == 1)
+  assert (ship.fuel == testConfig.initialFuel)
+  assert (ship.posX == 10 && ship.posY == 10)
+  games <- query @Game admin
+  game <- case games of
+    [(_, g)] -> pure g
+    _ -> fail "se esperaba un Game activo"
+  assert (game.shipCounter == 1)
+
+testMintShipTwice : Script ()
+testMintShipTwice = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  gameCid <- newGame admin [pilot]
+  yardCid <- newYard admin gameCid [pilot]
+  _ <- submit pilot do
+    exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
+  -- El Shipyard se recrea con la referencia actualizada al Game
+  yards <- query @Shipyard admin
+  yardCid2 <- case yards of
+    [(cid, _)] -> pure cid
+    _ -> fail "se esperaba un Shipyard activo"
+  shipCid2 <- submit pilot do
+    exerciseCmd yardCid2 MintShip with pilot, posX = 20, posY = 0
+  Some ship2 <- queryContractId pilot shipCid2
+  assert (ship2.serial == 2)
+
+testMintShipTooClose : Script ()
+testMintShipTooClose = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  gameCid <- newGame admin [pilot]
+  yardCid <- newYard admin gameCid [pilot]
+  -- Distancia 4 con MIN_ASTERIA_DISTANCE 5
+  submitMustFail pilot do
+    exerciseCmd yardCid MintShip with pilot, posX = 1, posY = 3
+
+testMintShipWrongPilot : Script ()
+testMintShipWrongPilot = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  attacker <- allocateParty "Attacker"
+  -- El atacante puede ver el Game y el Shipyard, pero no controla MintShip
+  gameCid <- newGame admin [pilot, attacker]
+  -- El atacante puede ver el Shipyard, pero no controla MintShip para otro piloto
+  yardCid <- newYard admin gameCid [pilot, attacker]
+  -- Un tercero no puede mintear a nombre de otro
+  submitMustFail attacker do
+    exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
