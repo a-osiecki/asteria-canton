@@ -17,12 +17,21 @@ const PELLET = "Asteria.Pellet:Pellet";
 const GAME_ID = "asteria-1";
 
 const SHIP_CONFIG = {
-  maxSpeed: 20,
-  maxFuel: 100,
-  fuelPerStep: 1,
-  initialFuel: 10,
-  minAsteriaDistance: 5,
+  maxSpeed: "20",
+  maxFuel: "100",
+  fuelPerStep: "1",
+  initialFuel: "10",
+  minAsteriaDistance: "5",
 };
+
+// En el JSON API de Daml, Int y Decimal se codifican como string.
+function s(value: number): string {
+  return String(value);
+}
+
+function num(value: unknown): number {
+  return typeof value === "number" ? value : Number(value);
+}
 
 function clients(config: Config): { provider: JsonApi; user: JsonApi } {
   return {
@@ -126,7 +135,7 @@ export async function setupCommand(config: Config): Promise<void> {
       provider.create(tid(config, GAME), {
         admin,
         gameId: GAME_ID,
-        shipCounter: 0,
+        shipCounter: s(0),
         shipMintFee: "0.0",
         observers: [pilot],
       }),
@@ -139,7 +148,7 @@ export async function setupCommand(config: Config): Promise<void> {
         admin,
         gameId: GAME_ID,
         pot: "100.0",
-        maxAsteriaMining: 50,
+        maxAsteriaMining: s(50),
         observers: [pilot],
       }),
     ],
@@ -163,9 +172,9 @@ export async function setupCommand(config: Config): Promise<void> {
       provider.create(tid(config, PELLET), {
         admin,
         gameId: GAME_ID,
-        posX: 5,
-        posY: 5,
-        fuel: 50,
+        posX: s(5),
+        posY: s(5),
+        fuel: s(50),
         prize: "0.0",
         observers: [pilot],
       }),
@@ -184,8 +193,8 @@ export async function mintCommand(config: Config, posX: number, posY: number): P
     [
       user.exercise(tid(config, YARD), yard.contractId, "MintShip", {
         pilot: state.pilot,
-        posX,
-        posY,
+        posX: s(posX),
+        posY: s(posY),
       }),
     ],
     [state.pilot],
@@ -198,7 +207,7 @@ export async function moveCommand(config: Config, deltaX: number, deltaY: number
   const { user } = clients(config);
   const ship = await shipOf(user, state.pilot, config);
   await user.submit(
-    [user.exercise(tid(config, SHIP), ship.contractId, "Move", { deltaX, deltaY })],
+    [user.exercise(tid(config, SHIP), ship.contractId, "Move", { deltaX: s(deltaX), deltaY: s(deltaY) })],
     [state.pilot],
   );
   console.log(`Nave movida por (${deltaX},${deltaY}).`);
@@ -208,16 +217,16 @@ export async function gatherCommand(config: Config, amount: number): Promise<voi
   const state = requireState();
   const { user } = clients(config);
   const ship = await shipOf(user, state.pilot, config);
-  const shipX = ship.argument.posX as number;
-  const shipY = ship.argument.posY as number;
+  const shipX = num(ship.argument.posX);
+  const shipY = num(ship.argument.posY);
   const pellets = await user.activeContracts(state.pilot, tid(config, PELLET));
-  const pellet = pellets.find((p) => p.argument.posX === shipX && p.argument.posY === shipY);
+  const pellet = pellets.find((p) => num(p.argument.posX) === shipX && num(p.argument.posY) === shipY);
   if (!pellet) throw new Error(`No hay pellet en la posición de la nave (${shipX},${shipY}).`);
   await user.submit(
     [
       user.exercise(tid(config, SHIP), ship.contractId, "GatherFuel", {
         pelletCid: pellet.contractId,
-        amount,
+        amount: s(amount),
         prizeAmount: "0.0",
       }),
     ],
@@ -250,15 +259,15 @@ export async function gridCommand(config: Config): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
   const ships: ShipData[] = (await user.activeContracts(state.pilot, tid(config, SHIP))).map((c) => ({
-    serial: c.argument.serial as number,
-    posX: c.argument.posX as number,
-    posY: c.argument.posY as number,
-    fuel: c.argument.fuel as number,
+    serial: num(c.argument.serial),
+    posX: num(c.argument.posX),
+    posY: num(c.argument.posY),
+    fuel: num(c.argument.fuel),
   }));
   const pellets: PelletData[] = (await user.activeContracts(state.pilot, tid(config, PELLET))).map((c) => ({
-    posX: c.argument.posX as number,
-    posY: c.argument.posY as number,
-    fuel: c.argument.fuel as number,
+    posX: num(c.argument.posX),
+    posY: num(c.argument.posY),
+    fuel: num(c.argument.fuel),
   }));
   console.log(renderGrid(ships, pellets));
 }
