@@ -116,6 +116,20 @@ scripts/wallet.sh send app-provider app-user 10.0
 
 El envío usa `transfer-preapproval`, así que el receptor tiene que haber creado la preapproval antes. El `send` resuelve solo la party del receptor a partir de su `user-status`.
 
+## UIs de wallet
+
+El módulo vendorizado incluye las web UIs de Splice. Para ver el historial de transacciones de cada wallet (el faucet y las transferencias de CC), alcanza con nginx y las dos wallets:
+
+```bash
+scripts/up-ui.sh        # levanta nginx + wallet-web-ui de app-user y app-provider
+scripts/up-ui.sh down   # las detiene
+```
+
+- Wallet app-user: http://localhost:2000
+- Wallet app-provider: http://localhost:3000
+
+En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el wallet del validator (`app-user` o `app-provider`), que es distinto de las parties del CLI. Las UIs de scan, SV, ANS y Swagger quedan afuera: suman RAM y no hacen falta para el PoC.
+
 ## Detener y limpiar
 
 ```bash
@@ -137,7 +151,7 @@ LocalNet autentica con un JWT HS256 firmado con el secreto `unsafe`. Cualquiera 
 | `canton` | Tres participants y el synchronizer en un JVM | JSON API 2975, 3975, 4975 |
 | `splice` | Validator apps, SV app y Scan | Admin 2903, 3903, 4903 (no expuestos) |
 
-Las UIs de wallet, ANS, SV y Scan no se levantan: no hacen falta para jugar desde el CLI.
+Las UIs de wallet, ANS, SV y Scan no se levantan por defecto: `scripts/up-ui.sh` levanta las de wallet, que muestran el historial de transacciones de cada validator.
 
 ## Archivos
 
@@ -152,6 +166,7 @@ devnet/
     status.sh             # version, ledger-end, packages y DAR por participante
     bootstrap-dar.sh      # sube el DAR a los dos participantes
     wallet.sh             # saldo, faucet y transferencias de Canton Coin
+    up-ui.sh              # levanta las UIs de wallet
     jwt.sh                # imprime un token HS256 valido
     _common.sh            # utilidades compartidas
 ```
