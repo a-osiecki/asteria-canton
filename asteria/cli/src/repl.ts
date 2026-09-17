@@ -94,8 +94,13 @@ export async function playCommand(config: Config): Promise<void> {
     queue = queue
       .then(async () => {
         if (done) return;
-        const [cmd, ...args] = line.trim().split(/\s+/);
-        if (cmd === "") return;
+        const parts = line
+          .trim()
+          .split(/\s+/)
+          .filter((part) => part !== "");
+        if (parts[0] === "asteria") parts.shift();
+        const [cmd, ...args] = parts;
+        if (cmd === undefined) return;
         if (cmd === "exit" || cmd === "salir") {
           done = true;
           rl.close();
