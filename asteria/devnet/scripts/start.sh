@@ -22,23 +22,37 @@ if [ "$KEEP" = false ]; then
   "$SCRIPT_DIR/reset.sh"
 fi
 
-"$SCRIPT_DIR/up.sh"
+splice_healthy() {
+  [ "$(docker inspect -f '{{.State.Health.Status}}' splice 2>/dev/null || echo "sin contenedor")" = "healthy" ]
+}
+
+wait_splice() {
+  local timeout="$1" waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if splice_healthy; then
+      echo "splice: healthy (${waited}s)"
+      return 0
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+  return 1
+}
+
+echo ">>> Levantando el core"
+if ! "$SCRIPT_DIR/up.sh"; then
+  echo "Aviso: up.sh fallo (tipico si canton o splice arrancaron antes que postgres); sigo con la recuperacion"
+fi
 
 echo
-echo ">>> Esperando a que splice este healthy (hasta ${SPLICE_TIMEOUT}s)"
-waited=0
-while [ "$waited" -lt "$SPLICE_TIMEOUT" ]; do
-  status="$(docker inspect -f '{{.State.Health.Status}}' splice 2>/dev/null || echo "sin contenedor")"
-  if [ "$status" = "healthy" ]; then
-    echo "splice: healthy (${waited}s)"
-    break
+echo ">>> Esperando a que splice este healthy"
+if ! wait_splice 60; then
+  echo "splice sigue unhealthy; lo reinicio una vez"
+  docker restart splice >/dev/null
+  if ! wait_splice "$SPLICE_TIMEOUT"; then
+    echo "splice no llego a healthy. Corré scripts/diagnose.sh" >&2
+    exit 1
   fi
-  sleep 5
-  waited=$((waited + 5))
-done
-if [ "$status" != "healthy" ]; then
-  echo "splice no llego a healthy en ${SPLICE_TIMEOUT}s. Corré scripts/diagnose.sh" >&2
-  exit 1
 fi
 
 if [ "$KEEP" = false ]; then
