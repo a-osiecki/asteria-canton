@@ -100,6 +100,22 @@ ssh -i ~/.ssh/asteria_devnet ubuntu@IP 'cd ~/asteria-devnet && scripts/bootstrap
 
 Si se recompila el DAR con la misma version, Canton rechaza el vetting con `KNOWN_PACKAGE_VERSION`. Para el PoC lo mas simple es `scripts/reset.sh` y volver a arrancar.
 
+## Wallets y Canton Coin
+
+Los validator apps de splice crean sus propias parties (distintas de las del CLI) y cada una tiene wallet. `scripts/wallet.sh` las maneja; los JWT se generan solos:
+
+- `app-user`: validator admin API en el puerto 2903.
+- `app-provider`: puerto 3903.
+
+```bash
+scripts/wallet.sh status                     # party, onboarding y saldo de ambas
+scripts/wallet.sh tap                        # faucet de LocalNet: 20.000 CC por wallet
+scripts/wallet.sh preapproval app-user       # el receptor aprueba transferencias entrantes
+scripts/wallet.sh send app-provider app-user 10.0
+```
+
+El envío usa `transfer-preapproval`, así que el receptor tiene que haber creado la preapproval antes. El `send` resuelve solo la party del receptor a partir de su `user-status`.
+
 ## Detener y limpiar
 
 ```bash
@@ -135,6 +151,7 @@ devnet/
     reset.sh              # detiene y borra volumenes
     status.sh             # version, ledger-end, packages y DAR por participante
     bootstrap-dar.sh      # sube el DAR a los dos participantes
+    wallet.sh             # saldo, faucet y transferencias de Canton Coin
     jwt.sh                # imprime un token HS256 valido
     _common.sh            # utilidades compartidas
 ```
