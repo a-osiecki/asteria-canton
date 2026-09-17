@@ -13,6 +13,12 @@ export interface PartyDetails {
   isLocal?: boolean;
 }
 
+export interface SubmitResult {
+  updateId: string;
+  offset: number;
+  transaction: Json;
+}
+
 export class JsonApi {
   private readonly token: string;
 
@@ -129,14 +135,40 @@ export class JsonApi {
     return contracts;
   }
 
-  async submit(commands: Json[], actAs: string[], readAs: string[] = actAs): Promise<Json> {
-    return this.postJson<Json>("/v2/commands/submit-and-wait", {
+  async submit(commands: Json[], actAs: string[], readAs: string[] = actAs): Promise<SubmitResult> {
+    const data = await this.postJson<{ transaction?: Json }>("/v2/commands/submit-and-wait-for-transaction", {
       commands,
       commandId: randomUUID(),
       actAs,
       readAs,
       userId: this.userId,
     });
+    const transaction = (data.transaction ?? {}) as Json;
+    return {
+      updateId: transaction.updateId === undefined ? "" : String(transaction.updateId),
+      offset: Number(transaction.offset ?? 0),
+      transaction,
+    };
+  }
+
+  async updateById(updateId: string, party: string): Promise<Json> {
+    const body: Json = {
+      updateId,
+      updateFormat: {
+        includeTransactions: {
+          transactionShape: "TRANSACTION_SHAPE_ACS_DELTA",
+          eventFormat: {
+            filtersByParty: {
+              [party]: {
+                cumulative: [{ identifierFilter: { WildcardFilter: { value: {} } } }],
+              },
+            },
+            verbose: true,
+          },
+        },
+      },
+    };
+    return this.postJson<Json>("/v2/updates/update-by-id", body);
   }
 
   create(templateId: string, createArguments: Json): Json {

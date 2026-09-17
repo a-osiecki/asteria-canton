@@ -33,6 +33,23 @@ function num(value: unknown): number {
   return typeof value === "number" ? value : Number(value);
 }
 
+function shortParty(party: string): string {
+  return party.split("::")[0];
+}
+
+function eventLine(event: Json): string {
+  const created = event.CreatedEvent as Json | undefined;
+  if (created) return `+ ${String(created.templateId)}`;
+  const exercised = event.ExercisedEvent as Json | undefined;
+  if (exercised) {
+    const acting = ((exercised.actingParties ?? []) as string[]).map(shortParty).join(",");
+    return `> ${String(exercised.templateId)} ${String(exercised.choice)} (${acting})`;
+  }
+  const archived = event.ArchivedEvent as Json | undefined;
+  if (archived) return `- ${String(archived.templateId)}`;
+  return JSON.stringify(event);
+}
+
 function clients(config: Config): { provider: JsonApi; user: JsonApi } {
   return {
     provider: new JsonApi(providerUrl(config), config.userId, config.audience, config.secret),
@@ -130,7 +147,7 @@ export async function setupCommand(config: Config): Promise<void> {
   const existing = await provider.activeContracts(admin, tid(config, GAME));
   if (existing.length > 0) throw new Error("Ya hay un Game activo. Corré 'asteria reset' o borralo antes de recrear.");
 
-  await provider.submit(
+  const gameTx = await provider.submit(
     [
       provider.create(tid(config, GAME), {
         admin,
@@ -142,7 +159,7 @@ export async function setupCommand(config: Config): Promise<void> {
     ],
     [admin],
   );
-  await provider.submit(
+  const poolTx = await provider.submit(
     [
       provider.create(tid(config, POOL), {
         admin,
@@ -155,7 +172,7 @@ export async function setupCommand(config: Config): Promise<void> {
     [admin],
   );
   const game = await single(provider, admin, tid(config, GAME), "Game");
-  await provider.submit(
+  const yardTx = await provider.submit(
     [
       provider.create(tid(config, YARD), {
         admin,
@@ -167,7 +184,7 @@ export async function setupCommand(config: Config): Promise<void> {
     ],
     [admin],
   );
-  await provider.submit(
+  const pelletTx = await provider.submit(
     [
       provider.create(tid(config, PELLET), {
         admin,
@@ -182,6 +199,10 @@ export async function setupCommand(config: Config): Promise<void> {
     [admin],
   );
   console.log("Juego creado: Game, PrizePool, Shipyard y un pellet en (5,5) con 50 de combustible.");
+  console.log(`tx Game:      ${gameTx.updateId}`);
+  console.log(`tx PrizePool: ${poolTx.updateId}`);
+  console.log(`tx Shipyard:  ${yardTx.updateId}`);
+  console.log(`tx Pellet:    ${pelletTx.updateId}`);
   console.log("Ahora: asteria mint 10 10");
 }
 
@@ -189,7 +210,7 @@ export async function mintCommand(config: Config, posX: number, posY: number): P
   const state = requireState();
   const { user } = clients(config);
   const yard = await single(user, state.pilot, tid(config, YARD), "Shipyard");
-  await user.submit(
+  const result = await user.submit(
     [
       user.exercise(tid(config, YARD), yard.contractId, "MintShip", {
         pilot: state.pilot,
@@ -200,17 +221,19 @@ export async function mintCommand(config: Config, posX: number, posY: number): P
     [state.pilot],
   );
   console.log(`Nave minteada en (${posX},${posY}).`);
+  console.log(`tx: ${result.updateId}`);
 }
 
 export async function moveCommand(config: Config, deltaX: number, deltaY: number): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
   const ship = await shipOf(user, state.pilot, config);
-  await user.submit(
+  const result = await user.submit(
     [user.exercise(tid(config, SHIP), ship.contractId, "Move", { deltaX: s(deltaX), deltaY: s(deltaY) })],
     [state.pilot],
   );
   console.log(`Nave movida por (${deltaX},${deltaY}).`);
+  console.log(`tx: ${result.updateId}`);
 }
 
 export async function gatherCommand(config: Config, amount: number): Promise<void> {
@@ -222,7 +245,7 @@ export async function gatherCommand(config: Config, amount: number): Promise<voi
   const pellets = await user.activeContracts(state.pilot, tid(config, PELLET));
   const pellet = pellets.find((p) => num(p.argument.posX) === shipX && num(p.argument.posY) === shipY);
   if (!pellet) throw new Error(`No hay pellet en la posición de la nave (${shipX},${shipY}).`);
-  await user.submit(
+  const result = await user.submit(
     [
       user.exercise(tid(config, SHIP), ship.contractId, "GatherFuel", {
         pelletCid: pellet.contractId,
@@ -233,6 +256,7 @@ export async function gatherCommand(config: Config, amount: number): Promise<voi
     [state.pilot],
   );
   console.log(`Juntaste ${amount} de combustible.`);
+  console.log(`tx: ${result.updateId}`);
 }
 
 export async function mineCommand(config: Config): Promise<void> {
@@ -240,28 +264,32 @@ export async function mineCommand(config: Config): Promise<void> {
   const { user } = clients(config);
   const ship = await shipOf(user, state.pilot, config);
   const pool = await single(user, state.pilot, tid(config, POOL), "PrizePool");
-  await user.submit(
+  const result = await user.submit(
     [user.exercise(tid(config, SHIP), ship.contractId, "Mine", { poolCid: pool.contractId })],
     [state.pilot],
   );
   console.log("Minaste el 50% del pozo. La nave quedó archivada.");
+  console.log(`tx: ${result.updateId}`);
 }
 
 export async function quitCommand(config: Config): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
   const ship = await shipOf(user, state.pilot, config);
-  await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
+  const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
   console.log("Abandonaste la partida. La nave quedó archivada.");
+  console.log(`tx: ${result.updateId}`);
 }
 
 export async function resetCommand(config: Config): Promise<void> {
   const state = requireState();
   const { provider, user } = clients(config);
 
+  const txs: string[] = [];
   const ships = await user.activeContracts(state.pilot, tid(config, SHIP));
   for (const ship of ships) {
-    await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
+    const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
+    txs.push(result.updateId);
   }
 
   const counts: Array<[string, number]> = [["naves", ships.length]];
@@ -273,24 +301,27 @@ export async function resetCommand(config: Config): Promise<void> {
   for (const [template, choice, label] of consumes) {
     const contracts = await provider.activeContracts(state.admin, tid(config, template));
     for (const contract of contracts) {
-      await provider.submit(
+      const result = await provider.submit(
         [provider.exercise(tid(config, template), contract.contractId, choice, {})],
         [state.admin],
       );
+      txs.push(result.updateId);
     }
     counts.push([label, contracts.length]);
   }
 
   const yards = await provider.activeContracts(state.admin, tid(config, YARD));
   for (const yard of yards) {
-    await provider.submit(
+    const result = await provider.submit(
       [provider.exercise(tid(config, YARD), yard.contractId, "Archive", {})],
       [state.admin],
     );
+    txs.push(result.updateId);
   }
   counts.push(["shipyards", yards.length]);
 
   console.log(`Partida borrada: ${counts.map(([label, n]) => `${n} ${label}`).join(", ")}.`);
+  for (const tx of txs) console.log(`tx: ${tx}`);
   console.log("Ahora podés correr 'setup' de nuevo.");
 }
 
@@ -309,4 +340,24 @@ export async function gridCommand(config: Config): Promise<void> {
     fuel: num(c.argument.fuel),
   }));
   console.log(renderGrid(ships, pellets));
+}
+
+export async function txCommand(config: Config, updateId: string): Promise<void> {
+  const state = requireState();
+  const { provider, user } = clients(config);
+  let data: Json;
+  try {
+    data = await user.updateById(updateId, state.pilot);
+  } catch {
+    data = await provider.updateById(updateId, state.admin);
+  }
+  const update = (data.update ?? {}) as Json;
+  const wrapped = (update.Transaction ?? {}) as Json;
+  const transaction = (wrapped.value ?? wrapped) as Json;
+  const events = (transaction.events ?? []) as Json[];
+  console.log(`update:     ${String(transaction.updateId ?? updateId)}`);
+  console.log(`offset:     ${String(transaction.offset ?? "?")}`);
+  console.log(`recordTime: ${String(transaction.recordTime ?? transaction.effectiveAt ?? "?")}`);
+  console.log(`eventos:    ${events.length}`);
+  for (const event of events) console.log(`  ${eventLine(event)}`);
 }

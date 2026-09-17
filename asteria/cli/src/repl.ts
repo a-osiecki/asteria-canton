@@ -12,6 +12,7 @@ import {
   resetCommand,
   setupCommand,
   statusCommand,
+  txCommand,
 } from "./commands.js";
 import { loadState } from "./state.js";
 
@@ -27,6 +28,7 @@ const REPL_HELP = `Comandos:
   mine              Mina el pozo si la nave está en (0,0)
   quit              Abandona la partida
   grid              Muestra la grilla
+  tx <updateId>     Muestra la transacción (update) en detalle
   exit              Sale del modo interactivo`;
 
 // Comandos que cambian el estado del juego: después se redibuja la grilla.
@@ -68,6 +70,10 @@ async function runCommand(config: Config, cmd: string, args: string[]): Promise<
       return quitCommand(config);
     case "grid":
       return gridCommand(config);
+    case "tx": {
+      if (args[0] === undefined) throw new Error("falta el update id. Uso: tx <updateId>");
+      return txCommand(config, args[0]);
+    }
     default:
       throw new Error(`comando desconocido: ${cmd}. Probá 'help'.`);
   }

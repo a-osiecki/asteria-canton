@@ -24,7 +24,10 @@ asteria move -5 -5
 asteria gather 20
 asteria move -5 -5
 asteria mine
+asteria tx <updateId>
 ```
+
+Cada comando que envía una transacción imprime su **update ID** (`tx: ...`). `asteria tx <updateId>` muestra esa transacción en detalle: offset, record time y los eventos (creates y exercises) con template, choice y parties. Nota: el historial de la wallet web solo lista las transacciones de su propio wallet de Canton Coin; las del juego se ven con `tx`.
 
 O en modo interactivo, que mantiene la sesión y redibuja la grilla después de cada acción:
 

@@ -12,6 +12,7 @@ import {
   resetCommand,
   setupCommand,
   statusCommand,
+  txCommand,
 } from "./commands.js";
 import { playCommand } from "./repl.js";
 
@@ -30,6 +31,7 @@ Comandos:
   mine              Mina el pozo si la nave está en (0,0)
   quit              Abandona la partida
   grid              Muestra la grilla
+  tx <updateId>     Muestra la transacción (update) en detalle
   play (o repl)     Modo interactivo: los comandos anteriores sin salir de la sesión
 
 Variables de entorno:
@@ -64,6 +66,10 @@ async function main(): Promise<void> {
       return quitCommand(config);
     case "grid":
       return gridCommand(config);
+    case "tx": {
+      if (args[0] === undefined) throw new Error("falta el update id. Uso: asteria tx <updateId>");
+      return txCommand(config, args[0]);
+    }
     case "play":
     case "repl":
       return playCommand(config);
