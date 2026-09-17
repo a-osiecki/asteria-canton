@@ -12,6 +12,7 @@ import {
   setupCommand,
   statusCommand,
 } from "./commands.js";
+import { playCommand } from "./repl.js";
 
 const HELP = `Asteria CLI
 
@@ -27,6 +28,7 @@ Comandos:
   mine              Mina el pozo si la nave está en (0,0)
   quit              Abandona la partida
   grid              Muestra la grilla
+  play (o repl)     Modo interactivo: los comandos anteriores sin salir de la sesión
 
 Variables de entorno:
   ASTERIA_HOST, ASTERIA_PROVIDER_PORT, ASTERIA_USER_PORT
@@ -58,6 +60,9 @@ async function main(): Promise<void> {
       return quitCommand(config);
     case "grid":
       return gridCommand(config);
+    case "play":
+    case "repl":
+      return playCommand(config);
     default:
       console.log(HELP);
   }

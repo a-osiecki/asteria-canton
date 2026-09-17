@@ -25,6 +25,14 @@ asteria move -5 -5
 asteria mine
 ```
 
+O en modo interactivo, que mantiene la sesión y redibuja la grilla después de cada acción:
+
+```bash
+asteria play        # también: asteria repl
+```
+
+Dentro de la sesión: `help` lista los comandos, `exit` sale. Un error en un comando no corta la sesión.
+
 La configuración sale de `asteria/devnet/.env` si existe, o de variables de entorno:
 
 | Variable | Default | Descripción |
