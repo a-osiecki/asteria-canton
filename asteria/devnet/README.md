@@ -142,6 +142,17 @@ Muestra las últimas 50 transacciones de las parties `asteria-*` (se puede cambi
 
 El token HS256 lo genera el navegador con el secreto `unsafe` de LocalNet, así que el explorer funciona en https o localhost (donde `crypto.subtle` está disponible); en un servidor HTTP plano remoto no.
 
+## Reanudar el devnet en un comando
+
+Después de apagar y volver a prender el Codespace (o el servidor):
+
+```bash
+scripts/start.sh          # arranca limpio: reset, core, DAR, UIs, wallets con CC y partida nueva
+scripts/start.sh --keep   # no resetea: solo levanta y verifica lo existente
+```
+
+El modo por defecto borra el volumen (ledger, wallets y partida) y tarda unos minutos; `--keep` conserva todo. El detalle completo está en [`../runbook.md`](../runbook.md).
+
 ## Detener y limpiar
 
 ```bash
@@ -172,6 +183,7 @@ devnet/
   .env                    # red, party hint, version de imagenes, puertos y package ID
   localnet/               # modulo LocalNet vendorizado de cn-quickstart
   scripts/
+    start.sh              # arranque en un comando (reset + core + UIs + partida)
     up.sh                 # levanta postgres, canton y splice
     down.sh               # detiene
     reset.sh              # detiene y borra volumenes
