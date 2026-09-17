@@ -22,5 +22,5 @@
       "visibility": "public"
     }
   },
-  "postCreateCommand": "bash -lc 'cd asteria/cli && npm install'"
+  "postCreateCommand": "bash -lc 'cd asteria/cli && npm install && npm run build'"
 }
