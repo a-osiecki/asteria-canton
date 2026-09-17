@@ -68,11 +68,14 @@ services:
       - ${LOCALNET_DIR}/conf/nginx/app-provider.conf:/etc/nginx/templates/app-provider.c${APP_PROVIDER_PROFILE}f.template
       - ${LOCALNET_DIR}/conf/nginx/app-user.conf:/etc/nginx/templates/app-user.c${APP_USER_PROFILE}f.template
       - ${LOCALNET_DIR}/conf/nginx/sv.conf:/etc/nginx/templates/sv.c${SV_PROFILE}f.template
+      - ${LOCALNET_DIR}/conf/nginx/explorer.conf:/etc/nginx/templates/explorer.conf.template
       - ${LOCALNET_DIR}/conf/nginx/swagger-ui:/etc/nginx/includes
+      - ${DEVNET_DIR}/explorer:/usr/share/nginx/asteria-explorer:ro
     ports:
       - "${HOST_BIND_IP:-127.0.0.1}:${SV_UI_PORT}:${SV_UI_PORT}"
       - "${HOST_BIND_IP:-127.0.0.1}:${APP_PROVIDER_UI_PORT}:${APP_PROVIDER_UI_PORT}"
       - "${HOST_BIND_IP:-127.0.0.1}:${APP_USER_UI_PORT}:${APP_USER_UI_PORT}"
+      - "${HOST_BIND_IP:-127.0.0.1}:${EXPLORER_UI_PORT}:${EXPLORER_UI_PORT}"
     depends_on:
       wallet-web-ui-sv:
         condition: service_healthy

@@ -11,7 +11,7 @@
     "memory": "16gb",
     "storage": "32gb"
   },
-  "forwardPorts": [2975, 3975, 2001, 3001],
+  "forwardPorts": [2975, 3975, 2001, 3001, 2002],
   "portsAttributes": {
     "2975": {
       "label": "Canton JSON API (app-user)",
@@ -30,6 +30,11 @@
     },
     "3001": {
       "label": "Wallet app-provider",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    },
+    "2002": {
+      "label": "Asteria Explorer",
       "onAutoForward": "silent",
       "visibility": "public"
     }

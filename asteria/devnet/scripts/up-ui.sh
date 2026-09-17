@@ -7,6 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 UI_USER_PORT="${APP_USER_UI_PORT:-2000}"
 UI_PROVIDER_PORT="${APP_PROVIDER_UI_PORT:-3000}"
+EXPLORER_PORT="${EXPLORER_UI_PORT:-2002}"
 UI_SERVICES=(nginx wallet-web-ui-app-user wallet-web-ui-app-provider)
 
 if [ "${1:-}" = "down" ]; then
@@ -23,6 +24,7 @@ compose ps "${UI_SERVICES[@]}"
 echo
 echo "Wallet app-user:     http://localhost:$UI_USER_PORT"
 echo "Wallet app-provider: http://localhost:$UI_PROVIDER_PORT"
+echo "Asteria Explorer:    http://localhost:$EXPLORER_PORT"
 echo
 echo "En Codespaces, abri esos puertos desde la pestana Ports."
 echo "La primera carga puede tardar unos segundos hasta que arranca Next.js."

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 DEVNET_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export DEVNET_DIR
 LOCALNET_DIR="$DEVNET_DIR/localnet"
 export LOCALNET_DIR
 export LOCALNET_ENV_DIR="${LOCALNET_DIR}/env"

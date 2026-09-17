@@ -132,6 +132,16 @@ En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el walle
 
 `SPLICE_APP_UI_HTTP_URL` en `.env` decide si la UI llama al validator API por https (`false`) o http (`true`). En Codespaces va `false`; en un servidor con HTTP plano, `true`.
 
+## Explorer del juego
+
+`scripts/up-ui.sh` levanta también, vía nginx, un explorer mínimo de las transacciones de Asteria:
+
+- http://localhost:2002 (en Codespaces, el puerto 2002)
+
+Muestra las últimas 50 transacciones de las parties `asteria-*` (se puede cambiar la party en el selector) con el detalle de cada evento: template, choice, acting parties, y el `createArgument` (el equivalente al datum de un UTxO), el `choiceArgument` y el `exerciseResult`. Se refresca cada 5 segundos.
+
+El token HS256 lo genera el navegador con el secreto `unsafe` de LocalNet, así que el explorer funciona en https o localhost (donde `crypto.subtle` está disponible); en un servidor HTTP plano remoto no.
+
 ## Detener y limpiar
 
 ```bash
@@ -168,7 +178,7 @@ devnet/
     status.sh             # version, ledger-end, packages y DAR por participante
     bootstrap-dar.sh      # sube el DAR a los dos participantes
     wallet.sh             # saldo, faucet y transferencias de Canton Coin
-    up-ui.sh              # levanta las UIs de wallet
+    up-ui.sh              # levanta las UIs de wallet y el explorer
     jwt.sh                # imprime un token HS256 valido
     _common.sh            # utilidades compartidas
 ```
