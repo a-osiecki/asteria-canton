@@ -36,6 +36,7 @@ Comandos:
 
 Opciones:
   --as <n|hint>     Piloto sobre el que operar (default 1). Ej: move -5 -5 --as 2
+  --private-ships   En setup: las naves solo las ven el admin y su piloto (default: publicas)
 
 Variables de entorno:
   ASTERIA_HOST, ASTERIA_PROVIDER_PORT, ASTERIA_USER_PORT
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
     case "init":
       return initCommand(config, args[0] === undefined ? undefined : Number(args[0]));
     case "setup":
-      return setupCommand(config);
+      return setupCommand(config, args.includes("--private-ships"));
     case "reset":
       return resetCommand(config);
     case "mint": {

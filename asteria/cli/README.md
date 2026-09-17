@@ -50,7 +50,7 @@ asteria move -5 -5 --as 1
 asteria grid --as 2
 ```
 
-Todos los pilotos quedan como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia esos observers a la nave: todos ven el tablero completo, como en el original. Una party que no sea observer (por ejemplo una creada aparte, sin pasar por `init`) no ve nada; ese es el corte de privacidad de Canton. El explorer acepta `?party=<hint>` para abrir la vista de cada jugador.
+Todos los pilotos quedan como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia la lista `shipObservers` del `Shipyard` a la nave: por defecto todos ven el tablero completo, como en el original. Con `setup --private-ships` la lista queda vacía y cada nave la ven solo su piloto y el admin. Una party que no sea observer (por ejemplo una creada aparte, sin pasar por `init`) no ve nada; ese es el corte de privacidad de Canton. El explorer acepta `?party=<hint>` para abrir la vista de cada jugador.
 
 La configuración sale de `asteria/devnet/.env` si existe, o de variables de entorno:
 

@@ -32,6 +32,7 @@ newYard admin gameCid observers =
       gameCid
       config = testConfig
       observers
+      shipObservers = observers
 
 testMintShipValid : Script ()
 testMintShipValid = do
@@ -91,3 +92,25 @@ testMintShipWrongPilot = do
   -- Un tercero no puede mintear a nombre de otro
   submitMustFail attacker do
     exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
+
+testMintShipPrivate : Script ()
+testMintShipPrivate = do
+  admin <- allocateParty "Admin"
+  pilot <- allocateParty "Pilot"
+  attacker <- allocateParty "Attacker"
+  gameCid <- newGame admin [pilot, attacker]
+  yardCid <- submit admin do
+    createCmd Shipyard with
+      admin
+      gameId = "asteria-1"
+      gameCid
+      config = testConfig
+      observers = [pilot, attacker]
+      shipObservers = []
+  shipCid <- submit pilot do
+    exerciseCmd yardCid MintShip with pilot, posX = 10, posY = 10
+  -- La nave la ven su piloto y el admin, no el resto de los observers del Shipyard
+  Some _ <- queryContractId pilot shipCid
+  Some _ <- queryContractId admin shipCid
+  None <- queryContractId attacker shipCid
+  pure ()

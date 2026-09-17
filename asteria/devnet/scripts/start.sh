@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Bootstrap del devnet en un comando.
 # Por defecto arranca limpio: reset, core, DAR, UIs, wallets con CC y partida nueva.
-# Uso: start.sh [--keep]   (--keep no resetea ni siembra; solo levanta y verifica)
+# Uso: start.sh [--keep] [--private-ships]
+#   --keep           no resetea ni siembra; solo levanta y verifica
+#   --private-ships  crea la partida con naves visibles solo para su piloto y el admin
 set -euo pipefail
 # shellcheck disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
@@ -9,7 +11,13 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_DIR="$DEVNET_DIR/../cli"
 KEEP=false
-[ "${1:-}" = "--keep" ] && KEEP=true
+PRIVATE_SHIPS=false
+for arg in "$@"; do
+  case "$arg" in
+    --keep) KEEP=true ;;
+    --private-ships) PRIVATE_SHIPS=true ;;
+  esac
+done
 SPLICE_TIMEOUT=600
 
 if ! docker info >/dev/null 2>&1; then
@@ -72,7 +80,11 @@ if [ "$KEEP" = false ]; then
   echo ">>> Fondeando wallets con el faucet y creando la partida"
   "$SCRIPT_DIR/wallet.sh" tap all
   "$SCRIPT_DIR/wallet.sh" preapproval app-user
-  (cd "$CLI_DIR" && node dist/index.js init && node dist/index.js setup)
+  if [ "$PRIVATE_SHIPS" = true ]; then
+    (cd "$CLI_DIR" && node dist/index.js init && node dist/index.js setup --private-ships)
+  else
+    (cd "$CLI_DIR" && node dist/index.js init && node dist/index.js setup)
+  fi
 else
   echo
   echo ">>> Modo --keep: no se reseteo ni se sembro nada."

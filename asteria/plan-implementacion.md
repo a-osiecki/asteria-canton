@@ -322,6 +322,7 @@ template Shipyard
     gameCid : ContractId Game
     config : ShipConfig
     observers : [Party]
+    shipObservers : [Party]
   where
     signatory admin
     observer observers
@@ -349,7 +350,7 @@ template Shipyard
           fuel = config.initialFuel
           lastMoveTime = now
           config
-          observers
+          observers = shipObservers
         -- RegisterShip recrea el Game: se actualiza la referencia del Shipyard
         _ <- create this with gameCid = gameCid2
         return shipCid

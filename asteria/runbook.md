@@ -170,7 +170,8 @@ asteria move -5 -5 --as 1
 asteria mine --as 2
 ```
 
-- `setup` deja a todos los pilotos como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia esos observers a cada `Ship`: el tablero es público para los jugadores, como en el original.
+- `setup` deja a todos los pilotos como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia la lista `shipObservers` del `Shipyard` a cada `Ship`: por defecto el tablero es público para los jugadores, como en el original.
+- `setup --private-ships` deja `shipObservers = []`: cada nave la ven solo su piloto y el admin, y cada explorer muestra únicamente la nave propia más los contratos compartidos. Es el modo para demostrar privacidad real (diferencia 15 del design).
 - Una party que no sea observer ve cero contratos y su explorer queda vacío: ahí se ve el corte de privacidad de Canton.
 - Cada jugador puede tener su explorer con `http://localhost:2002/?party=asteria-pilot-2` (el selector también permite cambiarla y la URL se actualiza).
 - `grid --as N` muestra el tablero desde la perspectiva de ese piloto (misma vista si es observer) y lista quién es dueño de cada nave.
@@ -394,7 +395,7 @@ curl -s -H "Authorization: Bearer $JU" -X POST -H 'Content-Type: application/jso
 - Fase 2 del design: pozo en Canton Coin real (`MintShip` verifica el pago, `Payout` transfiere con token estándar).
 - Observers públicos en los contratos del juego para que otras parties lean el estado.
 - `asteria init --wallet`: jugar con las parties de los validators para que la actividad aparezca como `unknown` en la wallet web.
-- Naves privadas por piloto: hoy `MintShip` copia los observers del `Shipyard`, así que el tablero es público; para que cada piloto vea solo su nave hay que cambiar eso en Daml y registrarlo en `design-canton.md`.
+- Wallets por piloto: hoy la wallet de CC es la del validator (`app-user`/`app-provider`), no de cada piloto.
 - Swagger UI contra los JSON APIs.
 - Índice derivado (PQS o Scan) para explorar histórico sin tocar el participant.
 - Tests del CLI y de `wallet.sh`.

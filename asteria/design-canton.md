@@ -11,7 +11,7 @@ Las diferencias se agrupan en dos clases:
 - **Cambios forzados por la plataforma.** Son consecuencias del modelo de Canton: contratos con choices en lugar de validadores, autorización por parties, visibilidad por stakeholders, tiempo asignado por el synchronizer y activos representados como contratos.
 - **Decisiones del port.** Son elecciones donde existía más de una opción razonable. Cada una se documenta junto con la alternativa que se descartó.
 
-La tabla siguiente resume las catorce diferencias. El detalle de cada una está en la sección "Diferencias de portabilidad y motivación".
+La tabla siguiente resume las quince diferencias. El detalle de cada una está en la sección "Diferencias de portabilidad y motivación".
 
 | # | Tema | Clase | Impacto en las mecánicas |
 | --- | --- | --- | --- |
@@ -29,6 +29,7 @@ La tabla siguiente resume las catorce diferencias. El detalle de cada una está 
 | 12 | Contract keys no soportadas | Forzado | Ninguno, la unicidad se resuelve con el contador |
 | 13 | Combustible como campo del `Ship` | Decisión | Ninguno |
 | 14 | Financiación del pozo y pago de entrada | Decisión | En la fase 1 el pozo no crece con cada nave |
+| 15 | Visibilidad de naves configurable (`shipObservers`) | Decisión | Default público (fiel al original); privado permite mostrar la privacidad por party |
 
 Un principio recorre todo el diseño: en Daml la autorización reemplaza a la firma explícita del administrador. Cuando un piloto ejerce un choice sobre un contrato que el admin firmó, las consecuencias de esa acción heredan la autoridad del admin. Eso permite que el piloto mueva su nave, junte combustible y mine sin que el admin esté conectado, siempre que el admin haya definido de antemano qué transiciones permite cada contrato. El mismo mecanismo reemplaza al `PilotToken` del original.
 
@@ -533,6 +534,18 @@ La implementación confirmó un límite importante de este punto: la autorizaci�
 **Motivación en Canton:** en la fase 1 no hay valor real en juego y la contabilidad alcanza. En la fase 2, la transferencia de valor tiene autorización y workflow propios que no se pueden verificar mirando el balance de una transacción.
 
 **Impacto en el juego:** en la fase 1 el pozo no crece con cada nave, así que el premio depende de la financiación inicial del admin. Es la diferencia más visible respecto del original y desaparece en la fase 2.
+
+#### 15. Visibilidad de naves configurable (`shipObservers`)
+
+**En Cardano:** todos los UTxOs son públicos; cualquier observador del tablero ve las naves.
+
+**Motivación en Cardano:** el modelo eUTxO no tiene visibilidad selectiva, y el juego original asume que todos los bots ven la grilla completa.
+
+**En Canton:** el `Shipyard` define dos listas: `observers` (quién ve el shipyard y puede ejercer `MintShip`) y `shipObservers` (quién ve cada nave). `MintShip` copia `shipObservers` al crear el `Ship`; el admin y el piloto siempre la ven porque son signatories.
+
+**Motivación en Canton:** con el default `shipObservers = observers` la grilla queda pública, fiel al original (diferencia 6). Pasar `shipObservers = []` deja cada nave visible solo para su piloto y el admin, lo que permite demostrar la privacidad por party sin tocar los templates. La alternativa, fijar los observers por piloto dentro del `Ship`, se descartó porque el `Shipyard` es único y no puede tener observers distintos por nave.
+
+**Impacto en el juego:** en modo privado los jugadores no ven las naves rivales, así que se pierde la estrategia de persecución del original. Es una opción de demostración: `setup` usa el tablero público salvo `--private-ships`.
 
 ## Riesgos y preguntas abiertas
 

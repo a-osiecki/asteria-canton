@@ -161,7 +161,7 @@ export async function initCommand(config: Config, pilotCount = 2): Promise<void>
   console.log("Estado guardado en asteria-state.json");
 }
 
-export async function setupCommand(config: Config): Promise<void> {
+export async function setupCommand(config: Config, privateShips = false): Promise<void> {
   const state = requireState();
   const { provider } = clients(config);
   const admin = state.admin;
@@ -203,6 +203,7 @@ export async function setupCommand(config: Config): Promise<void> {
         gameCid: game.contractId,
         config: SHIP_CONFIG,
         observers: pilots,
+        shipObservers: privateShips ? [] : pilots,
       }),
     ],
     [admin],
@@ -221,7 +222,8 @@ export async function setupCommand(config: Config): Promise<void> {
     ],
     [admin],
   );
-  console.log("Juego creado: Game, PrizePool, Shipyard y un pellet en (5,5) con 50 de combustible.");
+  console.log(`Juego creado: Game, PrizePool, Shipyard y un pellet en (5,5) con 50 de combustible.`);
+  console.log(`Naves: ${privateShips ? "privadas (solo admin y su piloto)" : "publicas (todos los pilotos)"}.`);
   console.log(`tx Game:      ${gameTx.updateId}`);
   console.log(`tx PrizePool: ${poolTx.updateId}`);
   console.log(`tx Shipyard:  ${yardTx.updateId}`);

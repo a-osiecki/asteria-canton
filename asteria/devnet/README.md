@@ -151,7 +151,7 @@ scripts/start.sh          # arranca limpio: reset, core, DAR, UIs, wallets con C
 scripts/start.sh --keep   # no resetea: solo levanta y verifica lo existente
 ```
 
-El modo por defecto borra el volumen (ledger, wallets y partida) y tarda unos minutos; `--keep` conserva todo. El detalle completo está en [`../runbook.md`](../runbook.md).
+Con `--private-ships` la partida arranca con naves privadas (solo las ven su piloto y el admin). El modo por defecto borra el volumen (ledger, wallets y partida) y tarda unos minutos; `--keep` conserva todo. El detalle completo está en [`../runbook.md`](../runbook.md).
 
 ## Detener y limpiar
 

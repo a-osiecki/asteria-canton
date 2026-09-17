@@ -32,7 +32,8 @@ const REPL_HELP = `Comandos:
   exit              Sale del modo interactivo
 
 Opciones:
-  --as <n|hint>     Piloto sobre el que operar (default 1). Ej: move -5 -5 --as 2`;
+  --as <n|hint>     Piloto sobre el que operar (default 1). Ej: move -5 -5 --as 2
+  --private-ships   En setup: las naves solo las ven el admin y su piloto (default: publicas)`;
 
 // Comandos que cambian el estado del juego: después se redibuja la grilla.
 const GRID_AFTER = new Set(["setup", "mint", "move", "gather", "mine", "quit"]);
@@ -73,7 +74,7 @@ async function runCommand(config: Config, cmd: string, args: string[]): Promise<
     case "init":
       return initCommand(config, rest[0] === undefined ? undefined : Number(rest[0]));
     case "setup":
-      return setupCommand(config);
+      return setupCommand(config, rest.includes("--private-ships"));
     case "reset":
       return resetCommand(config);
     case "mint":

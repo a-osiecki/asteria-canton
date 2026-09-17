@@ -41,6 +41,7 @@ testGameFlow = do
       gameCid
       config = testConfig
       observers = [pilot]
+      shipObservers = [pilot]
   pelletCid <- submit admin do
     createCmd Pellet with
       admin
