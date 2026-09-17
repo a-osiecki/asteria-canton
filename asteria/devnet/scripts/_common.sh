@@ -13,7 +13,7 @@ set -a
 source "$DEVNET_DIR/.env"
 set +a
 
-export PARTY_HINT="${PARTY_HINT:-asteria-1}"
+export PARTY_HINT="${PARTY_HINT:-asteria-localparty-1}"
 export IMAGE_TAG="${IMAGE_TAG:-0.6.11}"
 export DOCKER_NETWORK="${DOCKER_NETWORK:-asteria}"
 export HOST="${HOST:-localhost}"
