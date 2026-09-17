@@ -21,10 +21,20 @@ export APP_PROVIDER_JSON_PORT="${APP_PROVIDER_JSON_PORT:-3975}"
 export APP_USER_JSON_PORT="${APP_USER_JSON_PORT:-2975}"
 export AUTH_AUDIENCE="${AUTH_AUDIENCE:-https://canton.network.global}"
 export LEDGER_USER="${LEDGER_USER:-ledger-api-user}"
+export RESOURCE_CONSTRAINTS_ENABLED="${RESOURCE_CONSTRAINTS_ENABLED:-true}"
 
 COMPOSE=(
   docker compose
   -f "$LOCALNET_DIR/compose.yaml"
+)
+
+# Limites de memoria y heap de los JVM. Sin esto, los cinco JVM del contenedor
+# splice compiten por memoria y el contenedor se reinicia.
+if [ "$RESOURCE_CONSTRAINTS_ENABLED" = "true" ]; then
+  COMPOSE+=(-f "$LOCALNET_DIR/resource-constraints.yaml")
+fi
+
+COMPOSE+=(
   --env-file "$DEVNET_DIR/.env"
   --env-file "$LOCALNET_DIR/compose.env"
   --env-file "$LOCALNET_DIR/env/common.env"
