@@ -19,7 +19,7 @@ Uso: asteria <comando> [argumentos]
 
 Comandos:
   status            Estado de la devnet: ledger-end y packages de cada participante
-  init              Resuelve las parties admin y piloto, y guarda asteria-state.json
+  init              Crea o reutiliza las parties admin y piloto, y les da derechos al usuario
   setup             Crea el juego, el pozo, el shipyard y un pellet
   mint [x] [y]      Mintea una nave en (x,y). Por defecto (10,10)
   move <dx> <dy>    Mueve la nave

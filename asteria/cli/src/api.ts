@@ -8,6 +8,11 @@ export interface ActiveContract {
   argument: Record<string, unknown>;
 }
 
+export interface PartyDetails {
+  party: string;
+  isLocal?: boolean;
+}
+
 export class JsonApi {
   private readonly token: string;
 
@@ -69,6 +74,31 @@ export class JsonApi {
     const party = data.user?.primaryParty;
     if (!party) throw new Error(`El usuario ${this.userId} no tiene primaryParty todavia.`);
     return party;
+  }
+
+  async listParties(): Promise<PartyDetails[]> {
+    const data = await this.getJson<{ partyDetails?: PartyDetails[] }>("/v2/parties");
+    return data.partyDetails ?? [];
+  }
+
+  async allocateParty(hint: string): Promise<string> {
+    const data = await this.postJson<{ partyDetails: PartyDetails }>("/v2/parties", { partyIdHint: hint });
+    return data.partyDetails.party;
+  }
+
+  async listRights(): Promise<Json[]> {
+    const data = await this.getJson<{ rights?: Json[] }>(
+      `/v2/users/${encodeURIComponent(this.userId)}/rights`,
+    );
+    return data.rights ?? [];
+  }
+
+  async grantRights(rights: Json[]): Promise<void> {
+    await this.postJson(`/v2/users/${encodeURIComponent(this.userId)}/rights`, {
+      userId: this.userId,
+      identityProviderId: "",
+      rights,
+    });
   }
 
   async activeContracts(party: string, templateId: string): Promise<ActiveContract[]> {

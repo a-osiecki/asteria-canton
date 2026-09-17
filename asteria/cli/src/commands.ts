@@ -1,6 +1,6 @@
 import type { Config } from "./config.js";
 import { providerUrl, userUrl } from "./config.js";
-import type { ActiveContract } from "./api.js";
+import type { ActiveContract, Json } from "./api.js";
 import { JsonApi } from "./api.js";
 import type { State } from "./state.js";
 import { loadState, saveState } from "./state.js";
@@ -70,14 +70,40 @@ export async function statusCommand(config: Config): Promise<void> {
   }
 }
 
+interface RightShape {
+  kind?: {
+    CanActAs?: { value?: { party?: string } };
+    CanReadAs?: { value?: { party?: string } };
+  };
+}
+
+async function ensureParty(api: JsonApi, hint: string): Promise<string> {
+  const parties = await api.listParties();
+  const existing = parties.find((p) => p.party.startsWith(`${hint}::`));
+  if (existing) return existing.party;
+  return api.allocateParty(hint);
+}
+
+async function ensureRights(api: JsonApi, party: string): Promise<void> {
+  const rights = (await api.listRights()) as RightShape[];
+  const hasActAs = rights.some((r) => r.kind?.CanActAs?.value?.party === party);
+  const hasReadAs = rights.some((r) => r.kind?.CanReadAs?.value?.party === party);
+  const toGrant: Json[] = [];
+  if (!hasActAs) toGrant.push({ kind: { CanActAs: { value: { party } } } });
+  if (!hasReadAs) toGrant.push({ kind: { CanReadAs: { value: { party } } } });
+  if (toGrant.length > 0) await api.grantRights(toGrant);
+}
+
 export async function initCommand(config: Config): Promise<void> {
   const { provider, user } = clients(config);
   const packages = await provider.packages();
   if (config.packageId && !packages.includes(config.packageId)) {
     throw new Error("El DAR de Asteria no está subido en app-provider. Corré scripts/bootstrap-dar.sh.");
   }
-  const admin = await provider.primaryParty();
-  const pilot = await user.primaryParty();
+  const admin = await ensureParty(provider, "asteria-admin");
+  await ensureRights(provider, admin);
+  const pilot = await ensureParty(user, "asteria-pilot");
+  await ensureRights(user, pilot);
   saveState({ packageId: config.packageId, admin, pilot });
   console.log(`Admin (app-provider): ${admin}`);
   console.log(`Piloto (app-user):    ${pilot}`);
