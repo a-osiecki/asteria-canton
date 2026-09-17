@@ -129,6 +129,7 @@ El CLI **no** lee SQL: el grid sale del ledger. `gridCommand` consulta `POST /v2
 - Pide `TRANSACTION_SHAPE_LEDGER_EFFECTS` con `verbose: true` y filtra por la party elegida (`asteria-pilot` por defecto).
 - Cada update se muestra con offset, record time y update ID; y cada transacción como cajas: **consumidos** (rojo, `ExercisedEvent` consuming), **creados** (verde, `CreatedEvent` con su `createArgument`), y acciones no consumidoras (azul). Los desplegables muestran `choiceArgument`, `exerciseResult`, signatories y observers.
 - Se refresca cada 5 segundos.
+- Acepta `?party=<hint>` en la URL (por ejemplo `?party=asteria-pilot-2`) para abrir la vista de un jugador; al cambiar el selector, la URL se actualiza.
 
 ## 6. CLI
 
@@ -155,6 +156,24 @@ Detalles que importan:
 - Template IDs con referencia por **nombre de paquete**: `#asteria-contracts:Asteria.Spacetime:Ship`.
 - En el JSON API, `Int` y `Decimal` van como **string**.
 - Cada comando que envía transacción imprime `tx: <updateId>`; `tx` lo busca con `POST /v2/updates/update-by-id` (primero como pilot, con fallback a admin).
+
+### Multiparty
+
+`init` crea el admin y N pilotos (default 2): `asteria-pilot-1..N`. Cada comando actúa sobre uno con `--as <n|hint>` y el estado guarda la lista en `asteria-state.json` (`pilots`).
+
+```bash
+asteria init 3
+asteria setup
+asteria mint 10 10 --as 1
+asteria mint 12 12 --as 2
+asteria move -5 -5 --as 1
+asteria mine --as 2
+```
+
+- `setup` deja a todos los pilotos como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia esos observers a cada `Ship`: el tablero es público para los jugadores, como en el original.
+- Una party que no sea observer ve cero contratos y su explorer queda vacío: ahí se ve el corte de privacidad de Canton.
+- Cada jugador puede tener su explorer con `http://localhost:2002/?party=asteria-pilot-2` (el selector también permite cambiarla y la URL se actualiza).
+- `grid --as N` muestra el tablero desde la perspectiva de ese piloto (misma vista si es observer) y lista quién es dueño de cada nave.
 
 ## 7. Wallets y Canton Coin
 
@@ -375,6 +394,7 @@ curl -s -H "Authorization: Bearer $JU" -X POST -H 'Content-Type: application/jso
 - Fase 2 del design: pozo en Canton Coin real (`MintShip` verifica el pago, `Payout` transfiere con token estándar).
 - Observers públicos en los contratos del juego para que otras parties lean el estado.
 - `asteria init --wallet`: jugar con las parties de los validators para que la actividad aparezca como `unknown` en la wallet web.
+- Naves privadas por piloto: hoy `MintShip` copia los observers del `Shipyard`, así que el tablero es público; para que cada piloto vea solo su nave hay que cambiar eso en Daml y registrarlo en `design-canton.md`.
 - Swagger UI contra los JSON APIs.
 - Índice derivado (PQS o Scan) para explorar histórico sin tocar el participant.
 - Tests del CLI y de `wallet.sh`.

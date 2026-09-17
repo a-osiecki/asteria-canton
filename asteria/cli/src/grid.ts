@@ -1,5 +1,6 @@
 export interface ShipData {
   serial: number;
+  pilot: string;
   posX: number;
   posY: number;
   fuel: number;
@@ -36,7 +37,7 @@ export function renderGrid(ships: ShipData[], pellets: PelletData[]): string {
   }
   if (ships.length > 0) {
     lines.push("");
-    for (const ship of ships) lines.push(`Nave ${ship.serial}: (${ship.posX},${ship.posY}) fuel ${ship.fuel}`);
+    for (const ship of ships) lines.push(`Nave ${ship.serial} (${ship.pilot}): (${ship.posX},${ship.posY}) fuel ${ship.fuel}`);
   }
   if (pellets.length > 0) {
     lines.push("");

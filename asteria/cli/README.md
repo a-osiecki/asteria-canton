@@ -37,6 +37,21 @@ asteria play        # también: asteria repl
 
 Dentro de la sesión: `help` lista los comandos, `exit` sale. Un error en un comando no corta la sesión.
 
+## Multiparty
+
+`init` crea el admin y N pilotos (default 2); cada comando actúa sobre un piloto con `--as <n|hint>`:
+
+```bash
+asteria init 3
+asteria setup
+asteria mint 10 10 --as 1
+asteria mint 12 12 --as 2
+asteria move -5 -5 --as 1
+asteria grid --as 2
+```
+
+Todos los pilotos quedan como observers de `Game`, `PrizePool`, `Shipyard` y `Pellet`, y `MintShip` copia esos observers a la nave: todos ven el tablero completo, como en el original. Una party que no sea observer (por ejemplo una creada aparte, sin pasar por `init`) no ve nada; ese es el corte de privacidad de Canton. El explorer acepta `?party=<hint>` para abrir la vista de cada jugador.
+
 La configuración sale de `asteria/devnet/.env` si existe, o de variables de entorno:
 
 | Variable | Default | Descripción |

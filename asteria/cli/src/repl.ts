@@ -19,7 +19,7 @@ import { loadState } from "./state.js";
 const REPL_HELP = `Comandos:
   help              Muestra esta ayuda
   status            Estado de la devnet
-  init              Crea o reutiliza las parties admin y piloto
+  init [pilotos]    Crea o reutiliza el admin y N pilotos (default 2)
   setup             Crea el juego, el pozo, el shipyard y un pellet
   reset             Archiva los contratos de la partida para hacer setup de nuevo
   mint [x] [y]      Mintea una nave en (x,y). Por defecto (10,10)
@@ -29,10 +29,27 @@ const REPL_HELP = `Comandos:
   quit              Abandona la partida
   grid              Muestra la grilla
   tx <updateId>     Muestra la transacción (update) en detalle
-  exit              Sale del modo interactivo`;
+  exit              Sale del modo interactivo
+
+Opciones:
+  --as <n|hint>     Piloto sobre el que operar (default 1). Ej: move -5 -5 --as 2`;
 
 // Comandos que cambian el estado del juego: después se redibuja la grilla.
 const GRID_AFTER = new Set(["setup", "mint", "move", "gather", "mine", "quit"]);
+
+function splitAs(args: string[]): { as?: string; rest: string[] } {
+  const rest: string[] = [];
+  let as: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--as") {
+      as = args[i + 1];
+      i++;
+      continue;
+    }
+    rest.push(args[i]);
+  }
+  return { as, rest };
+}
 
 function intArg(value: string | undefined, name: string, fallback?: number): number {
   if (value === undefined) {
@@ -45,6 +62,7 @@ function intArg(value: string | undefined, name: string, fallback?: number): num
 }
 
 async function runCommand(config: Config, cmd: string, args: string[]): Promise<void> {
+  const { as, rest } = splitAs(args);
   switch (cmd) {
     case "help":
     case "ayuda":
@@ -53,26 +71,26 @@ async function runCommand(config: Config, cmd: string, args: string[]): Promise<
     case "status":
       return statusCommand(config);
     case "init":
-      return initCommand(config);
+      return initCommand(config, rest[0] === undefined ? undefined : Number(rest[0]));
     case "setup":
       return setupCommand(config);
     case "reset":
       return resetCommand(config);
     case "mint":
-      return mintCommand(config, intArg(args[0], "x", 10), intArg(args[1], "y", 10));
+      return mintCommand(config, intArg(rest[0], "x", 10), intArg(rest[1], "y", 10), as);
     case "move":
-      return moveCommand(config, intArg(args[0], "dx"), intArg(args[1], "dy"));
+      return moveCommand(config, intArg(rest[0], "dx"), intArg(rest[1], "dy"), as);
     case "gather":
-      return gatherCommand(config, intArg(args[0], "cantidad", 10));
+      return gatherCommand(config, intArg(rest[0], "cantidad", 10), as);
     case "mine":
-      return mineCommand(config);
+      return mineCommand(config, as);
     case "quit":
-      return quitCommand(config);
+      return quitCommand(config, as);
     case "grid":
-      return gridCommand(config);
+      return gridCommand(config, as);
     case "tx": {
-      if (args[0] === undefined) throw new Error("falta el update id. Uso: tx <updateId>");
-      return txCommand(config, args[0]);
+      if (rest[0] === undefined) throw new Error("falta el update id. Uso: tx <updateId>");
+      return txCommand(config, rest[0]);
     }
     default:
       throw new Error(`comando desconocido: ${cmd}. Probá 'help'.`);
@@ -81,7 +99,7 @@ async function runCommand(config: Config, cmd: string, args: string[]): Promise<
 
 export async function playCommand(config: Config): Promise<void> {
   const state = loadState();
-  if (state) console.log(`Piloto: ${state.pilot}`);
+  if (state) console.log(`Pilotos: ${state.pilots.map((pilot) => pilot.split("::")[0]).join(", ")}`);
   else console.log("Sin estado de partida: corré 'init' y 'setup' para empezar.");
   console.log(REPL_HELP);
   console.log();
@@ -107,10 +125,11 @@ export async function playCommand(config: Config): Promise<void> {
           return;
         }
         try {
+          const { as } = splitAs(args);
           await runCommand(config, cmd, args);
           if (GRID_AFTER.has(cmd)) {
             console.log();
-            await gridCommand(config);
+            await gridCommand(config, as);
           }
         } catch (error) {
           console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);

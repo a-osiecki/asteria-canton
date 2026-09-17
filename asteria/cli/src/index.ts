@@ -22,7 +22,7 @@ Uso: asteria <comando> [argumentos]
 
 Comandos:
   status            Estado de la devnet: ledger-end y packages de cada participante
-  init              Crea o reutiliza las parties admin y piloto, y les da derechos al usuario
+  init [pilotos]    Crea o reutiliza el admin y N pilotos (default 2)
   setup             Crea el juego, el pozo, el shipyard y un pellet
   reset             Archiva los contratos de la partida para poder hacer setup de nuevo
   mint [x] [y]      Mintea una nave en (x,y). Por defecto (10,10)
@@ -34,11 +34,28 @@ Comandos:
   tx <updateId>     Muestra la transacción (update) en detalle
   play (o repl)     Modo interactivo: los comandos anteriores sin salir de la sesión
 
+Opciones:
+  --as <n|hint>     Piloto sobre el que operar (default 1). Ej: move -5 -5 --as 2
+
 Variables de entorno:
   ASTERIA_HOST, ASTERIA_PROVIDER_PORT, ASTERIA_USER_PORT
   ASTERIA_PACKAGE_ID, ASTERIA_AUDIENCE, ASTERIA_USER, ASTERIA_SECRET
 
 También lee asteria/devnet/.env si existe.`;
+
+function splitAs(args: string[]): { as?: string; rest: string[] } {
+  const rest: string[] = [];
+  let as: string | undefined;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--as") {
+      as = args[i + 1];
+      i++;
+      continue;
+    }
+    rest.push(args[i]);
+  }
+  return { as, rest };
+}
 
 async function main(): Promise<void> {
   const { positionals } = parseArgs({ allowPositionals: true });
@@ -49,23 +66,35 @@ async function main(): Promise<void> {
     case "status":
       return statusCommand(config);
     case "init":
-      return initCommand(config);
+      return initCommand(config, args[0] === undefined ? undefined : Number(args[0]));
     case "setup":
       return setupCommand(config);
     case "reset":
       return resetCommand(config);
-    case "mint":
-      return mintCommand(config, Number(args[0] ?? 10), Number(args[1] ?? 10));
-    case "move":
-      return moveCommand(config, Number(args[0] ?? 0), Number(args[1] ?? 0));
-    case "gather":
-      return gatherCommand(config, Number(args[0] ?? 10));
-    case "mine":
-      return mineCommand(config);
-    case "quit":
-      return quitCommand(config);
-    case "grid":
-      return gridCommand(config);
+    case "mint": {
+      const { as, rest } = splitAs(args);
+      return mintCommand(config, Number(rest[0] ?? 10), Number(rest[1] ?? 10), as);
+    }
+    case "move": {
+      const { as, rest } = splitAs(args);
+      return moveCommand(config, Number(rest[0] ?? 0), Number(rest[1] ?? 0), as);
+    }
+    case "gather": {
+      const { as, rest } = splitAs(args);
+      return gatherCommand(config, Number(rest[0] ?? 10), as);
+    }
+    case "mine": {
+      const { as } = splitAs(args);
+      return mineCommand(config, as);
+    }
+    case "quit": {
+      const { as } = splitAs(args);
+      return quitCommand(config, as);
+    }
+    case "grid": {
+      const { as } = splitAs(args);
+      return gridCommand(config, as);
+    }
     case "tx": {
       if (args[0] === undefined) throw new Error("falta el update id. Uso: asteria tx <updateId>");
       return txCommand(config, args[0]);

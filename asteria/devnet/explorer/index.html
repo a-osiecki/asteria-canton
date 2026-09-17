@@ -316,6 +316,17 @@
         </div>`;
       }
 
+      function preferredParty() {
+        const requested = new URLSearchParams(window.location.search).get("party");
+        const options = [...partyEl.options];
+        const match = options.find((option) => option.text === requested || option.value === requested);
+        if (match) return match.value;
+        const preferred =
+          options.find((option) => option.text.startsWith("asteria-pilot-1")) ??
+          options.find((option) => option.text.startsWith("asteria-pilot"));
+        return preferred?.value ?? options[0]?.value;
+      }
+
       async function loadParties() {
         const data = await api("/v2/parties");
         const options = (data.partyDetails ?? [])
@@ -323,8 +334,13 @@
           .map((party) => `<option value="${esc(party.party)}">${esc(shortParty(party.party))}</option>`);
         if (options.length === 0) throw new Error(`no hay parties con prefijo ${PARTY_PREFIX}`);
         partyEl.innerHTML = options.join("");
-        const pilot = [...partyEl.options].find((option) => option.text.startsWith("asteria-pilot"));
-        if (pilot) partyEl.value = pilot.value;
+        partyEl.value = preferredParty();
+      }
+
+      function selectParty(party) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("party", shortParty(party));
+        history.replaceState(null, "", url);
       }
 
       async function load() {
@@ -348,10 +364,11 @@
           };
           const page = await api("/v2/updates/get-updates-page", body);
           const updates = page.updates ?? [];
+          document.title = `Asteria Explorer - ${shortParty(party)}`;
           updatesEl.innerHTML = updates.length === 0
             ? '<div class="empty">sin transacciones para esta party</div>'
             : updates.map(updateHtml).join("");
-          statusEl.textContent = `${updates.length} updates | offset ${page.highestPageOffsetInclusive ?? "?"}`;
+          statusEl.textContent = `${updates.length} updates para ${shortParty(party)} | offset ${page.highestPageOffsetInclusive ?? "?"}`;
         } catch (error) {
           updatesEl.innerHTML = `<div class="error">${esc(error.message)}</div>`;
           statusEl.textContent = "error";
@@ -370,7 +387,10 @@
           token = await makeToken();
           await loadParties();
           await load();
-          partyEl.addEventListener("change", load);
+          partyEl.addEventListener("change", () => {
+            selectParty(partyEl.value);
+            load();
+          });
           document.getElementById("refresh").addEventListener("click", load);
           autoEl.addEventListener("change", schedule);
           schedule();

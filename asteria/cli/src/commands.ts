@@ -68,6 +68,18 @@ function requireState(): State {
   return state;
 }
 
+function actingPilot(state: State, as?: string): string {
+  if (state.pilots.length === 0) throw new Error("No hay pilotos en el estado. Corré 'asteria init'.");
+  if (as === undefined || as === "") return state.pilots[0];
+  const index = Number(as);
+  if (Number.isInteger(index) && index >= 1 && index <= state.pilots.length) {
+    return state.pilots[index - 1];
+  }
+  const found = state.pilots.find((party) => shortParty(party) === as);
+  if (!found) throw new Error(`No existe el piloto '${as}'. Hay ${state.pilots.length} pilotos.`);
+  return found;
+}
+
 async function single(api: JsonApi, party: string, templateId: string, label: string): Promise<ActiveContract> {
   const contracts = await api.activeContracts(party, templateId);
   if (contracts.length === 0) throw new Error(`No se encontró ningún contrato de ${label}.`);
@@ -76,7 +88,11 @@ async function single(api: JsonApi, party: string, templateId: string, label: st
 }
 
 async function shipOf(user: JsonApi, pilot: string, config: Config): Promise<ActiveContract> {
-  return single(user, pilot, tid(config, SHIP), "Ship");
+  const ships = await user.activeContracts(pilot, tid(config, SHIP));
+  const mine = ships.filter((contract) => String(contract.argument.pilot) === pilot);
+  if (mine.length === 0) throw new Error(`No hay nave para ${shortParty(pilot)}.`);
+  if (mine.length > 1) console.warn(`Aviso: ${shortParty(pilot)} tiene ${mine.length} naves, uso la primera.`);
+  return mine[0];
 }
 
 export async function statusCommand(config: Config): Promise<void> {
@@ -122,19 +138,26 @@ async function ensureRights(api: JsonApi, party: string): Promise<void> {
   if (toGrant.length > 0) await api.grantRights(toGrant);
 }
 
-export async function initCommand(config: Config): Promise<void> {
+export async function initCommand(config: Config, pilotCount = 2): Promise<void> {
   const { provider, user } = clients(config);
   const packages = await provider.packages();
   if (config.packageId && !packages.includes(config.packageId)) {
     throw new Error("El DAR de Asteria no está subido en app-provider. Corré scripts/bootstrap-dar.sh.");
   }
+  if (!Number.isInteger(pilotCount) || pilotCount < 1) {
+    throw new Error("La cantidad de pilotos debe ser un entero >= 1.");
+  }
   const admin = await ensureParty(provider, "asteria-admin");
   await ensureRights(provider, admin);
-  const pilot = await ensureParty(user, "asteria-pilot");
-  await ensureRights(user, pilot);
-  saveState({ packageId: config.packageId, admin, pilot });
+  const pilots: string[] = [];
+  for (let i = 1; i <= pilotCount; i++) {
+    const pilot = await ensureParty(user, `asteria-pilot-${i}`);
+    await ensureRights(user, pilot);
+    pilots.push(pilot);
+  }
+  saveState({ packageId: config.packageId, admin, pilots });
   console.log(`Admin (app-provider): ${admin}`);
-  console.log(`Piloto (app-user):    ${pilot}`);
+  pilots.forEach((pilot, index) => console.log(`Piloto ${index + 1} (app-user):  ${pilot}`));
   console.log("Estado guardado en asteria-state.json");
 }
 
@@ -142,7 +165,7 @@ export async function setupCommand(config: Config): Promise<void> {
   const state = requireState();
   const { provider } = clients(config);
   const admin = state.admin;
-  const pilot = state.pilot;
+  const pilots = state.pilots;
 
   const existing = await provider.activeContracts(admin, tid(config, GAME));
   if (existing.length > 0) throw new Error("Ya hay un Game activo. Corré 'asteria reset' o borralo antes de recrear.");
@@ -154,7 +177,7 @@ export async function setupCommand(config: Config): Promise<void> {
         gameId: GAME_ID,
         shipCounter: s(0),
         shipMintFee: "0.0",
-        observers: [pilot],
+        observers: pilots,
       }),
     ],
     [admin],
@@ -166,7 +189,7 @@ export async function setupCommand(config: Config): Promise<void> {
         gameId: GAME_ID,
         pot: "100.0",
         maxAsteriaMining: s(50),
-        observers: [pilot],
+        observers: pilots,
       }),
     ],
     [admin],
@@ -179,7 +202,7 @@ export async function setupCommand(config: Config): Promise<void> {
         gameId: GAME_ID,
         gameCid: game.contractId,
         config: SHIP_CONFIG,
-        observers: [pilot],
+        observers: pilots,
       }),
     ],
     [admin],
@@ -193,7 +216,7 @@ export async function setupCommand(config: Config): Promise<void> {
         posY: s(5),
         fuel: s(50),
         prize: "0.0",
-        observers: [pilot],
+        observers: pilots,
       }),
     ],
     [admin],
@@ -203,46 +226,49 @@ export async function setupCommand(config: Config): Promise<void> {
   console.log(`tx PrizePool: ${poolTx.updateId}`);
   console.log(`tx Shipyard:  ${yardTx.updateId}`);
   console.log(`tx Pellet:    ${pelletTx.updateId}`);
-  console.log("Ahora: asteria mint 10 10");
+  console.log("Ahora: asteria mint 10 10 --as 1");
 }
 
-export async function mintCommand(config: Config, posX: number, posY: number): Promise<void> {
+export async function mintCommand(config: Config, posX: number, posY: number, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const yard = await single(user, state.pilot, tid(config, YARD), "Shipyard");
+  const pilot = actingPilot(state, as);
+  const yard = await single(user, pilot, tid(config, YARD), "Shipyard");
   const result = await user.submit(
     [
       user.exercise(tid(config, YARD), yard.contractId, "MintShip", {
-        pilot: state.pilot,
+        pilot,
         posX: s(posX),
         posY: s(posY),
       }),
     ],
-    [state.pilot],
+    [pilot],
   );
-  console.log(`Nave minteada en (${posX},${posY}).`);
+  console.log(`Nave minteada en (${posX},${posY}) para ${shortParty(pilot)}.`);
   console.log(`tx: ${result.updateId}`);
 }
 
-export async function moveCommand(config: Config, deltaX: number, deltaY: number): Promise<void> {
+export async function moveCommand(config: Config, deltaX: number, deltaY: number, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const ship = await shipOf(user, state.pilot, config);
+  const pilot = actingPilot(state, as);
+  const ship = await shipOf(user, pilot, config);
   const result = await user.submit(
     [user.exercise(tid(config, SHIP), ship.contractId, "Move", { deltaX: s(deltaX), deltaY: s(deltaY) })],
-    [state.pilot],
+    [pilot],
   );
-  console.log(`Nave movida por (${deltaX},${deltaY}).`);
+  console.log(`Nave de ${shortParty(pilot)} movida por (${deltaX},${deltaY}).`);
   console.log(`tx: ${result.updateId}`);
 }
 
-export async function gatherCommand(config: Config, amount: number): Promise<void> {
+export async function gatherCommand(config: Config, amount: number, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const ship = await shipOf(user, state.pilot, config);
+  const pilot = actingPilot(state, as);
+  const ship = await shipOf(user, pilot, config);
   const shipX = num(ship.argument.posX);
   const shipY = num(ship.argument.posY);
-  const pellets = await user.activeContracts(state.pilot, tid(config, PELLET));
+  const pellets = await user.activeContracts(pilot, tid(config, PELLET));
   const pellet = pellets.find((p) => num(p.argument.posX) === shipX && num(p.argument.posY) === shipY);
   if (!pellet) throw new Error(`No hay pellet en la posición de la nave (${shipX},${shipY}).`);
   const result = await user.submit(
@@ -253,31 +279,33 @@ export async function gatherCommand(config: Config, amount: number): Promise<voi
         prizeAmount: "0.0",
       }),
     ],
-    [state.pilot],
+    [pilot],
   );
-  console.log(`Juntaste ${amount} de combustible.`);
+  console.log(`${shortParty(pilot)} juntó ${amount} de combustible.`);
   console.log(`tx: ${result.updateId}`);
 }
 
-export async function mineCommand(config: Config): Promise<void> {
+export async function mineCommand(config: Config, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const ship = await shipOf(user, state.pilot, config);
-  const pool = await single(user, state.pilot, tid(config, POOL), "PrizePool");
+  const pilot = actingPilot(state, as);
+  const ship = await shipOf(user, pilot, config);
+  const pool = await single(user, pilot, tid(config, POOL), "PrizePool");
   const result = await user.submit(
     [user.exercise(tid(config, SHIP), ship.contractId, "Mine", { poolCid: pool.contractId })],
-    [state.pilot],
+    [pilot],
   );
-  console.log("Minaste el 50% del pozo. La nave quedó archivada.");
+  console.log(`${shortParty(pilot)} minó el 50% del pozo. La nave quedó archivada.`);
   console.log(`tx: ${result.updateId}`);
 }
 
-export async function quitCommand(config: Config): Promise<void> {
+export async function quitCommand(config: Config, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const ship = await shipOf(user, state.pilot, config);
-  const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
-  console.log("Abandonaste la partida. La nave quedó archivada.");
+  const pilot = actingPilot(state, as);
+  const ship = await shipOf(user, pilot, config);
+  const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [pilot]);
+  console.log(`${shortParty(pilot)} abandonó la partida. La nave quedó archivada.`);
   console.log(`tx: ${result.updateId}`);
 }
 
@@ -286,13 +314,17 @@ export async function resetCommand(config: Config): Promise<void> {
   const { provider, user } = clients(config);
 
   const txs: string[] = [];
-  const ships = await user.activeContracts(state.pilot, tid(config, SHIP));
-  for (const ship of ships) {
-    const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
-    txs.push(result.updateId);
+  let shipCount = 0;
+  for (const pilot of state.pilots) {
+    const ships = await user.activeContracts(pilot, tid(config, SHIP));
+    for (const ship of ships) {
+      const result = await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [pilot]);
+      txs.push(result.updateId);
+      shipCount++;
+    }
   }
 
-  const counts: Array<[string, number]> = [["naves", ships.length]];
+  const counts: Array<[string, number]> = [["naves", shipCount]];
   const consumes: Array<[string, string, string]> = [
     [POOL, "ConsumePool", "pozos"],
     [GAME, "ConsumeGame", "juegos"],
@@ -325,32 +357,39 @@ export async function resetCommand(config: Config): Promise<void> {
   console.log("Ahora podés correr 'setup' de nuevo.");
 }
 
-export async function gridCommand(config: Config): Promise<void> {
+export async function gridCommand(config: Config, as?: string): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
-  const ships: ShipData[] = (await user.activeContracts(state.pilot, tid(config, SHIP))).map((c) => ({
+  const viewer = actingPilot(state, as);
+  const ships: ShipData[] = (await user.activeContracts(viewer, tid(config, SHIP))).map((c) => ({
     serial: num(c.argument.serial),
+    pilot: shortParty(String(c.argument.pilot)),
     posX: num(c.argument.posX),
     posY: num(c.argument.posY),
     fuel: num(c.argument.fuel),
   }));
-  const pellets: PelletData[] = (await user.activeContracts(state.pilot, tid(config, PELLET))).map((c) => ({
+  const pellets: PelletData[] = (await user.activeContracts(viewer, tid(config, PELLET))).map((c) => ({
     posX: num(c.argument.posX),
     posY: num(c.argument.posY),
     fuel: num(c.argument.fuel),
   }));
+  console.log(`Vista de ${shortParty(viewer)}:`);
   console.log(renderGrid(ships, pellets));
 }
 
 export async function txCommand(config: Config, updateId: string): Promise<void> {
   const state = requireState();
   const { provider, user } = clients(config);
-  let data: Json;
-  try {
-    data = await user.updateById(updateId, state.pilot);
-  } catch {
-    data = await provider.updateById(updateId, state.admin);
+  let data: Json | undefined;
+  for (const pilot of state.pilots) {
+    try {
+      data = await user.updateById(updateId, pilot);
+      break;
+    } catch {
+      data = undefined;
+    }
   }
+  if (!data) data = await provider.updateById(updateId, state.admin);
   const update = (data.update ?? {}) as Json;
   const wrapped = (update.Transaction ?? {}) as Json;
   const transaction = (wrapped.value ?? wrapped) as Json;
