@@ -223,6 +223,73 @@ Auth de LocalNet: JWT HS256 con secreto `unsafe`, audiencia `https://canton.netw
 
 Internos: `scan` escucha en 5012 (`/api/scan/...`) y `sv` en 5014 (`/api/sv/...`), dentro del contenedor `splice`.
 
+### Curls para pegarle al JSON API
+
+Preparación (una vez por terminal). `PORT=2975` es app-user; `3975` app-provider:
+
+```bash
+TOKEN=$(asteria/devnet/scripts/jwt.sh)
+HOST=localhost
+PORT=2975
+
+PILOT=$(curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/parties \
+  | grep -oE '"party":"asteria-pilot[^"]*"' | head -1 | cut -d'"' -f4)
+OFFSET=$(curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/state/ledger-end \
+  | grep -oE '[0-9]+' | head -1)
+```
+
+Lecturas:
+
+```bash
+# Version del participant
+curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/version | head -c 300
+
+# Ultimo offset (el "tip")
+curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/state/ledger-end
+
+# Parties
+curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/parties
+
+# Packages (para ver si el DAR esta)
+curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/packages | head -c 400
+
+# Derechos del usuario
+curl -s -H "Authorization: Bearer $TOKEN" http://$HOST:$PORT/v2/users/ledger-api-user/rights
+
+# Contratos activos (ACS) de asteria-pilot, todos los templates
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -X POST http://$HOST:$PORT/v2/state/active-contracts \
+  -d "{\"eventFormat\":{\"filtersByParty\":{\"$PILOT\":{\"cumulative\":[{\"identifierFilter\":{\"WildcardFilter\":{\"value\":{}}}}]}},\"verbose\":true},\"activeAtOffset\":$OFFSET}" \
+  | head -c 2000
+
+# ACS solo de Ship
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -X POST http://$HOST:$PORT/v2/state/active-contracts \
+  -d "{\"eventFormat\":{\"filtersByParty\":{\"$PILOT\":{\"cumulative\":[{\"identifierFilter\":{\"TemplateFilter\":{\"value\":{\"templateId\":\"#asteria-contracts:Asteria.Spacetime:Ship\"}}}}]}}},\"verbose\":true},\"activeAtOffset\":$OFFSET}"
+
+# Pagina de updates (lo que usa el explorer), ultimos 5
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -X POST http://$HOST:$PORT/v2/updates/get-updates-page \
+  -d "{\"updateFormat\":{\"includeTransactions\":{\"transactionShape\":\"TRANSACTION_SHAPE_LEDGER_EFFECTS\",\"eventFormat\":{\"filtersByParty\":{\"$PILOT\":{\"cumulative\":[{\"identifierFilter\":{\"WildcardFilter\":{\"value\":{}}}}]}},\"verbose\":true}}},\"maxPageSize\":5,\"descendingOrder\":true}" \
+  | head -c 3000
+
+# Un update por ID (lo que usa asteria tx)
+UPDATE=1220...
+curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -X POST http://$HOST:$PORT/v2/updates/update-by-id \
+  -d "{\"updateId\":\"$UPDATE\",\"updateFormat\":{\"includeTransactions\":{\"transactionShape\":\"TRANSACTION_SHAPE_LEDGER_EFFECTS\",\"eventFormat\":{\"filtersByParty\":{\"$PILOT\":{\"cumulative\":[{\"identifierFilter\":{\"WildcardFilter\":{\"value\":{}}}}]}},\"verbose\":true}}}}"
+
+# Stream de updates (primeros 3)
+curl -sN -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -X POST "http://$HOST:$PORT/v2/updates?limit=3" \
+  -d "{\"beginExclusive\":0,\"updateFormat\":{\"includeTransactions\":{\"transactionShape\":\"TRANSACTION_SHAPE_LEDGER_EFFECTS\",\"eventFormat\":{\"filtersByParty\":{\"$PILOT\":{\"cumulative\":[{\"identifierFilter\":{\"WildcardFilter\":{\"value\":{}}}}]}},\"verbose\":true}}}}"
+
+# Spec OpenAPI que sirve el participant
+curl -s http://$HOST:$PORT/docs/openapi | head -5
+```
+
+Para escrituras, el body de `submit-and-wait-for-transaction` va anidado: `{"commands": {"commands": [...], "commandId": "...", "actAs": ["..."], "readAs": ["..."], "userId": "ledger-api-user"}}`.
+
 ## 10. Troubleshooting
 
 | Síntoma | Causa | Fix |
