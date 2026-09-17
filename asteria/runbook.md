@@ -307,6 +307,30 @@ Para escrituras, el body de `submit-and-wait-for-transaction` va anidado: `{"com
 | Puerto 2000 ocupado en el Codespace | Otro proceso | Las UIs usan 2001/3001/4001/2002 |
 | `DAML_FAILURE ... AssertionFailed` en `move`/`gather` | Regla del juego (poco combustible, posición incorrecta) | Leer el `exercise_trace`; no es un bug |
 
+### Espacio en disco
+
+Ver qué ocupa y limpiar sin tocar la partida:
+
+```bash
+df -h /
+docker system df -v | head -40
+du -xh --max-depth=1 ~ 2>/dev/null | sort -h | tail -10
+
+docker builder prune -f          # cache de builds
+docker image prune -f            # imagenes colgantes
+npm cache clean --force
+rm -rf ~/.vscode-remote/data/logs/*
+```
+
+Si hace falta más, se pueden borrar las imágenes (se re-descargan en el próximo `up.sh`, 10-20 min):
+
+```bash
+scripts/down.sh
+docker system prune -a -f
+```
+
+Última opción, borra el ledger y la partida: `scripts/reset.sh` (equivale a `docker system prune --volumes` para este proyecto). Los caches de `.daml/` y `~/.dpm` también ocupan; el DAR está commiteado, así que se pueden borrar y recuperar con git.
+
 ## 11. Cheat sheet
 
 ```bash
