@@ -332,6 +332,8 @@ Los caches de Daml del repo suelen ser de los más grandes (el DAR está en `con
 du -sh asteria/daml/*/.daml asteria/cli/node_modules
 ```
 
+Los logs de contenedor viven en `/var/lib/docker/containers/*/*-json.log`. Con los JVM en DEBUG y en restart loop, 10 horas pueden llenar los 32 GB del Codespace; `resource-constraints.yaml` limita cada contenedor a 50 MB x 3 archivos y splice loguea en INFO. `scripts/down.sh` borra los contenedores y con ellos sus logs.
+
 Si hace falta más, se pueden borrar las imágenes (se re-descargan en el próximo `up.sh`, 10-20 min):
 
 ```bash

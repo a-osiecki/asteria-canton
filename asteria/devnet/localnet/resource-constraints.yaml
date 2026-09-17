@@ -1,36 +1,57 @@
 ## This file is used to set and control resource constraints for all essential services defined
 ## in the splice localnet template, These values should be adjusted carefully as it will impact the
 ## baseline resource requirements for the project.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
 services:
   nginx:
     mem_limit: 32mb
+    logging: *default-logging
   postgres:
     mem_limit: 2g
+    logging: *default-logging
   canton:
     mem_limit: 4g
     environment:
       _JAVA_OPTIONS: "-XX:-UseCompressedOops -Xms512m -Xmx2560m"
+    logging: *default-logging
   splice:
     mem_limit: 3g
     environment:
       _JAVA_OPTIONS: "-XX:-UseCompressedOops -Xms512m -Xmx2560m"
+      LOG_LEVEL_STDOUT: "INFO"
+      LOG_LEVEL_CANTON: "INFO"
+    logging: *default-logging
   console:
     mem_limit: 2g
     environment:
-      _JAVA_OPTIONS: "-XX:+UseContainerSupport -XX:-UseCompressedOops"
+      _JAVA_OPTIONS: "+UseContainerSupport -XX:-UseCompressedOops"
+    logging: *default-logging
   scan-web-ui:
     mem_limit: 256mb
+    logging: *default-logging
   sv-web-ui:
     mem_limit: 512mb
+    logging: *default-logging
   wallet-web-ui-app-provider:
     mem_limit: 256mb
+    logging: *default-logging
   ans-web-ui-app-provider:
     mem_limit: 256mb
+    logging: *default-logging
   wallet-web-ui-app-user:
     mem_limit: 256mb
+    logging: *default-logging
   ans-web-ui-app-user:
     mem_limit: 256mb
+    logging: *default-logging
   wallet-web-ui-sv:
     mem_limit: 256mb
+    logging: *default-logging
   swagger-ui:
     mem_limit: 128mb
+    logging: *default-logging
