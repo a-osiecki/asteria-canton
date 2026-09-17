@@ -17,6 +17,7 @@ export PATH="$PWD/dist:$PATH"   # o node dist/index.js <comando>
 asteria status
 asteria init
 asteria setup
+asteria reset
 asteria mint 10 10
 asteria grid
 asteria move -5 -5

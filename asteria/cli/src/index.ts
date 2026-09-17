@@ -9,6 +9,7 @@ import {
   mintCommand,
   moveCommand,
   quitCommand,
+  resetCommand,
   setupCommand,
   statusCommand,
 } from "./commands.js";
@@ -22,6 +23,7 @@ Comandos:
   status            Estado de la devnet: ledger-end y packages de cada participante
   init              Crea o reutiliza las parties admin y piloto, y les da derechos al usuario
   setup             Crea el juego, el pozo, el shipyard y un pellet
+  reset             Archiva los contratos de la partida para poder hacer setup de nuevo
   mint [x] [y]      Mintea una nave en (x,y). Por defecto (10,10)
   move <dx> <dy>    Mueve la nave
   gather <cantidad> Junta combustible del pellet en la posición de la nave
@@ -48,6 +50,8 @@ async function main(): Promise<void> {
       return initCommand(config);
     case "setup":
       return setupCommand(config);
+    case "reset":
+      return resetCommand(config);
     case "mint":
       return mintCommand(config, Number(args[0] ?? 10), Number(args[1] ?? 10));
     case "move":

@@ -255,6 +255,45 @@ export async function quitCommand(config: Config): Promise<void> {
   console.log("Abandonaste la partida. La nave quedó archivada.");
 }
 
+export async function resetCommand(config: Config): Promise<void> {
+  const state = requireState();
+  const { provider, user } = clients(config);
+
+  const ships = await user.activeContracts(state.pilot, tid(config, SHIP));
+  for (const ship of ships) {
+    await user.submit([user.exercise(tid(config, SHIP), ship.contractId, "Quit", {})], [state.pilot]);
+  }
+
+  const counts: Array<[string, number]> = [["naves", ships.length]];
+  const consumes: Array<[string, string, string]> = [
+    [POOL, "ConsumePool", "pozos"],
+    [GAME, "ConsumeGame", "juegos"],
+    [PELLET, "Consume", "pellets"],
+  ];
+  for (const [template, choice, label] of consumes) {
+    const contracts = await provider.activeContracts(state.admin, tid(config, template));
+    for (const contract of contracts) {
+      await provider.submit(
+        [provider.exercise(tid(config, template), contract.contractId, choice, {})],
+        [state.admin],
+      );
+    }
+    counts.push([label, contracts.length]);
+  }
+
+  const yards = await provider.activeContracts(state.admin, tid(config, YARD));
+  for (const yard of yards) {
+    await provider.submit(
+      [provider.exercise(tid(config, YARD), yard.contractId, "Archive", {})],
+      [state.admin],
+    );
+  }
+  counts.push(["shipyards", yards.length]);
+
+  console.log(`Partida borrada: ${counts.map(([label, n]) => `${n} ${label}`).join(", ")}.`);
+  console.log("Ahora podés correr 'setup' de nuevo.");
+}
+
 export async function gridCommand(config: Config): Promise<void> {
   const state = requireState();
   const { user } = clients(config);
