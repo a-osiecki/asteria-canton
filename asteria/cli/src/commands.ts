@@ -7,6 +7,8 @@ import { loadState, saveState } from "./state.js";
 import type { PelletData, ShipData } from "./grid.js";
 import { renderGrid } from "./grid.js";
 
+const PACKAGE_NAME = "asteria-contracts";
+
 const GAME = "Asteria.Asteria:Game";
 const POOL = "Asteria.Asteria:PrizePool";
 const SHIP = "Asteria.Spacetime:Ship";
@@ -29,9 +31,9 @@ function clients(config: Config): { provider: JsonApi; user: JsonApi } {
   };
 }
 
-function tid(config: Config, suffix: string): string {
-  if (!config.packageId) throw new Error("Falta el PACKAGE_ID. Configuralo en devnet/.env o en ASTERIA_PACKAGE_ID.");
-  return `${config.packageId}:${suffix}`;
+function tid(_config: Config, suffix: string): string {
+  // Este participante espera la referencia por nombre de paquete (#nombre:Modulo:Entidad).
+  return `#${PACKAGE_NAME}:${suffix}`;
 }
 
 function requireState(): State {
