@@ -314,12 +314,22 @@ Ver qué ocupa y limpiar sin tocar la partida:
 ```bash
 df -h /
 docker system df -v | head -40
-du -xh --max-depth=1 ~ 2>/dev/null | sort -h | tail -10
+sudo du -xh --max-depth=1 / 2>/dev/null | sort -h | tail -12
+du -xh --max-depth=2 /workspaces 2>/dev/null | sort -h | tail -12
 
-docker builder prune -f          # cache de builds
-docker image prune -f            # imagenes colgantes
+scripts/down.sh                   # corta el restart loop
+docker container prune -f         # contenedores muertos
+docker builder prune -f           # cache de builds
 npm cache clean --force
 rm -rf ~/.vscode-remote/data/logs/*
+sudo journalctl --vacuum-size=50M 2>/dev/null
+sudo apt-get clean
+```
+
+Los caches de Daml del repo suelen ser de los más grandes (el DAR está en `contracts/.daml/dist/`, eso no se borra):
+
+```bash
+du -sh asteria/daml/*/.daml asteria/cli/node_modules
 ```
 
 Si hace falta más, se pueden borrar las imágenes (se re-descargan en el próximo `up.sh`, 10-20 min):
