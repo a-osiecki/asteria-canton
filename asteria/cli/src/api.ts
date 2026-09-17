@@ -137,11 +137,13 @@ export class JsonApi {
 
   async submit(commands: Json[], actAs: string[], readAs: string[] = actAs): Promise<SubmitResult> {
     const data = await this.postJson<{ transaction?: Json }>("/v2/commands/submit-and-wait-for-transaction", {
-      commands,
-      commandId: randomUUID(),
-      actAs,
-      readAs,
-      userId: this.userId,
+      commands: {
+        commands,
+        commandId: randomUUID(),
+        actAs,
+        readAs,
+        userId: this.userId,
+      },
     });
     const transaction = (data.transaction ?? {}) as Json;
     return {
