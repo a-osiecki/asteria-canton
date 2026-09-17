@@ -130,6 +130,8 @@ scripts/up-ui.sh down   # las detiene
 
 En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el wallet del validator (`app-user` o `app-provider`), que es distinto de las parties del CLI. Las UIs de scan, SV, ANS y Swagger quedan afuera: suman RAM y no hacen falta para el PoC, así que los vhosts de nginx que las referenciaban se recortaron.
 
+`SPLICE_APP_UI_HTTP_URL` en `.env` decide si la UI llama al validator API por https (`false`) o http (`true`). En Codespaces va `false`; en un servidor con HTTP plano, `true`.
+
 ## Detener y limpiar
 
 ```bash
