@@ -8,6 +8,7 @@
       :root {
         --bg: #0f1115;
         --panel: #171a21;
+        --box: #0b0d11;
         --border: #2a2f3a;
         --text: #d7dae0;
         --muted: #8b93a1;
@@ -28,6 +29,7 @@
       header {
         position: sticky;
         top: 0;
+        z-index: 10;
         background: var(--panel);
         border-bottom: 1px solid var(--border);
         padding: 10px 16px;
@@ -47,12 +49,12 @@
       }
       button { cursor: pointer; }
       #status { color: var(--muted); margin-left: auto; }
-      main { padding: 16px; max-width: 1100px; margin: 0 auto; }
+      main { padding: 16px; max-width: 1200px; margin: 0 auto; }
       .update {
         background: var(--panel);
         border: 1px solid var(--border);
         border-radius: 6px;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         overflow: hidden;
       }
       .update-head {
@@ -61,22 +63,48 @@
         display: flex;
         gap: 16px;
         flex-wrap: wrap;
+        align-items: baseline;
       }
       .update-head .offset { color: var(--orange); }
-      .update-head .id { color: var(--muted); overflow-wrap: anywhere; }
-      .events { padding: 4px 12px 10px; }
-      .ev { padding: 6px 0; border-bottom: 1px dashed var(--border); }
-      .ev:last-child { border-bottom: none; }
-      .ev .kind { font-weight: bold; }
-      .ev.created .kind { color: var(--green); }
-      .ev.exercised .kind { color: var(--accent); }
-      .ev.archived .kind { color: var(--red); }
-      .ev .row { color: var(--muted); overflow-wrap: anywhere; }
-      .ev .row b { color: var(--text); font-weight: normal; }
+      .update-head .id { color: var(--muted); overflow-wrap: anywhere; font-size: 12px; }
+      .flow {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr);
+        gap: 8px;
+        padding: 10px 12px;
+        align-items: start;
+      }
+      .col-title {
+        color: var(--muted);
+        text-transform: uppercase;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
+      }
+      .arrow { text-align: center; color: var(--muted); padding-top: 26px; font-size: 16px; }
+      .box {
+        background: var(--box);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 8px;
+        margin-bottom: 8px;
+      }
+      .box.input { border-left: 3px solid var(--red); }
+      .box.output { border-left: 3px solid var(--green); }
+      .box.action { border-left: 3px solid var(--accent); }
+      .box-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+      .box .tmpl { font-weight: bold; }
+      .box.input .tmpl { color: var(--red); }
+      .box.output .tmpl { color: var(--green); }
+      .box.action .tmpl { color: var(--accent); }
+      .box .row { color: var(--muted); overflow-wrap: anywhere; }
+      .box .row b { color: var(--text); font-weight: normal; }
+      .cid { color: var(--orange); cursor: help; }
+      .placeholder { color: var(--muted); border: 1px dashed var(--border); border-radius: 5px; padding: 12px; text-align: center; }
       details { margin: 4px 0 2px; }
       summary { cursor: pointer; color: var(--accent); }
       pre {
-        background: #0b0d11;
+        background: #06080b;
         border: 1px solid var(--border);
         border-radius: 4px;
         padding: 8px;
@@ -158,11 +186,26 @@
       }
 
       function esc(value) {
-        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
       }
 
       function shortParty(party) {
         return String(party).split("::")[0];
+      }
+
+      function parties(list) {
+        const names = (list ?? []).map(shortParty);
+        return names.length === 0 ? "—" : names.join(", ");
+      }
+
+      function templateName(templateId) {
+        const parts = String(templateId).split(":");
+        return parts[parts.length - 1];
+      }
+
+      function cid(value) {
+        const text = String(value);
+        return `<span class="cid" title="${esc(text)}">${esc(text.slice(0, 14))}…</span>`;
       }
 
       function json(label, value) {
@@ -170,55 +213,106 @@
         return `<details><summary>${esc(label)}</summary><pre>${esc(JSON.stringify(value, null, 2))}</pre></details>`;
       }
 
-      function parties(list) {
-        return (list ?? []).map(shortParty).join(", ");
+      function resultRow(value) {
+        if (value === undefined || value === null) return "";
+        if (typeof value === "string") return `<div class="row">result <b>${cid(value)}</b></div>`;
+        return json("exerciseResult", value);
       }
 
-      function eventHtml(event) {
-        const created = event.CreatedEvent;
-        if (created) {
-          return `<div class="ev created">
-            <div class="kind">+ create ${esc(created.templateId)}</div>
-            <div class="row">cid <b>${esc(created.contractId)}</b></div>
-            <div class="row">signatories <b>${esc(parties(created.signatories))}</b> | observers <b>${esc(parties(created.observers))}</b></div>
-            ${json("createArgument (datum)", created.createArgument)}
-          </div>`;
-        }
-        const exercised = event.ExercisedEvent;
-        if (exercised) {
-          return `<div class="ev exercised">
-            <div class="kind">> exercise ${esc(exercised.templateId)} <b>${esc(exercised.choice)}</b>
-              ${exercised.consuming ? '<span class="badge">consuming</span>' : ""}</div>
-            <div class="row">acting <b>${esc(parties(exercised.actingParties))}</b> | cid <b>${esc(exercised.contractId)}</b></div>
-            ${json("choiceArgument", exercised.choiceArgument)}
-            ${json("exerciseResult", exercised.exerciseResult)}
-          </div>`;
-        }
-        const archived = event.ArchivedEvent;
-        if (archived) {
-          return `<div class="ev archived">
-            <div class="kind">- archive ${esc(archived.templateId)}</div>
-            <div class="row">cid <b>${esc(archived.contractId)}</b></div>
-          </div>`;
-        }
-        return `<div class="ev"><pre>${esc(JSON.stringify(event, null, 2))}</pre></div>`;
+      function inputBox(event) {
+        return `<div class="box input">
+          <div class="box-head">
+            <span class="tmpl">- ${esc(templateName(event.templateId))}</span>
+            <span class="badge">${esc(event.choice)}</span>
+          </div>
+          <div class="row">cid ${cid(event.contractId)}</div>
+          <div class="row">acting <b>${esc(parties(event.actingParties))}</b></div>
+          ${json("choiceArgument", event.choiceArgument)}
+          ${resultRow(event.exerciseResult)}
+        </div>`;
+      }
+
+      function archiveBox(event) {
+        return `<div class="box input">
+          <div class="box-head">
+            <span class="tmpl">- ${esc(templateName(event.templateId))}</span>
+            <span class="badge">archive</span>
+          </div>
+          <div class="row">cid ${cid(event.contractId)}</div>
+        </div>`;
+      }
+
+      function outputBox(event) {
+        return `<div class="box output">
+          <div class="box-head"><span class="tmpl">+ ${esc(templateName(event.templateId))}</span></div>
+          <div class="row">cid ${cid(event.contractId)}</div>
+          <div class="row">signatories <b>${esc(parties(event.signatories))}</b></div>
+          <div class="row">observers <b>${esc(parties(event.observers))}</b></div>
+          ${json("createArgument (datum)", event.createArgument)}
+        </div>`;
+      }
+
+      function actionBox(event) {
+        return `<div class="box action">
+          <div class="box-head">
+            <span class="tmpl">${esc(templateName(event.templateId))}</span>
+            <span class="badge">${esc(event.choice)} no consuming</span>
+          </div>
+          <div class="row">cid ${cid(event.contractId)}</div>
+          <div class="row">acting <b>${esc(parties(event.actingParties))}</b></div>
+          ${json("choiceArgument", event.choiceArgument)}
+          ${resultRow(event.exerciseResult)}
+        </div>`;
       }
 
       function updateHtml(update) {
         const envelope = update.update ?? update;
-        const transaction = (envelope.Transaction ?? envelope.transaction ?? {}).value ?? envelope.Transaction ?? envelope.transaction;
+        const wrapped = envelope.Transaction ?? envelope.transaction;
+        const transaction = wrapped?.value ?? wrapped;
         if (!transaction || !transaction.events) {
-          return `<div class="update"><div class="update-head">otro update</div>
-            <div class="events">${json("raw", envelope)}</div></div>`;
+          return `<div class="update">
+            <div class="update-head"><span class="id">update sin transacción Daml</span></div>
+            <div class="flow" style="grid-template-columns: 1fr">${json("raw", envelope)}</div>
+          </div>`;
         }
-        const events = (transaction.events ?? []).map(eventHtml).join("");
+        const events = transaction.events ?? [];
+        const created = events.filter((event) => event.CreatedEvent).map((event) => event.CreatedEvent);
+        const exercised = events.filter((event) => event.ExercisedEvent).map((event) => event.ExercisedEvent);
+        const archived = events.filter((event) => event.ArchivedEvent).map((event) => event.ArchivedEvent);
+        const consumed = exercised.filter((event) => event.consuming);
+        const actions = exercised.filter((event) => !event.consuming);
+
+        const inputs = [...consumed.map(inputBox), ...archived.map(archiveBox)].join("") ||
+          '<div class="placeholder">sin contratos consumidos</div>';
+        const outputs = created.map(outputBox).join("") ||
+          '<div class="placeholder">sin contratos creados</div>';
+        const actionsHtml = actions.length === 0
+          ? ""
+          : `<div class="flow" style="grid-template-columns: 1fr">
+              <div>
+                <div class="col-title">Acciones no consumidoras</div>
+                ${actions.map(actionBox).join("")}
+              </div>
+            </div>`;
+
         return `<div class="update">
           <div class="update-head">
             <span class="offset">offset ${esc(transaction.offset)}</span>
             <span>${esc(transaction.recordTime ?? transaction.effectiveAt ?? "")}</span>
             <span class="id">${esc(transaction.updateId)}</span>
           </div>
-          <div class="events">${events}</div>
+          <div class="flow">
+            <div>
+              <div class="col-title">Contratos consumidos (inputs)</div>
+              ${inputs}
+            </div>
+            <div class="arrow">→</div>
+            <div>
+              <div class="col-title">Contratos creados (outputs)</div>
+              ${outputs}
+            </div>
+          </div>
+          ${actionsHtml}
         </div>`;
       }
 
