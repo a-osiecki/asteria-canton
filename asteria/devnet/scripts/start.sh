@@ -66,7 +66,9 @@ else
 fi
 
 url_for() {
-  local port="$1" label="$2" url="http://localhost:$port"
+  local port="$1"
+  local label="$2"
+  local url="http://localhost:$port"
   if [ -n "${CODESPACE_NAME:-}" ] && [ -n "${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN:-}" ]; then
     url="https://${CODESPACE_NAME}-${port}.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}"
   fi
