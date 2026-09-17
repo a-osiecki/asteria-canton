@@ -125,10 +125,10 @@ scripts/up-ui.sh        # levanta nginx + wallet-web-ui de app-user y app-provid
 scripts/up-ui.sh down   # las detiene
 ```
 
-- Wallet app-user: http://localhost:2000
-- Wallet app-provider: http://localhost:3000
+- Wallet app-user: http://localhost:2001
+- Wallet app-provider: http://localhost:3001
 
-En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el wallet del validator (`app-user` o `app-provider`), que es distinto de las parties del CLI. Las UIs de scan, SV, ANS y Swagger quedan afuera: suman RAM y no hacen falta para el PoC.
+En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el wallet del validator (`app-user` o `app-provider`), que es distinto de las parties del CLI. Las UIs de scan, SV, ANS y Swagger quedan afuera: suman RAM y no hacen falta para el PoC, así que los vhosts de nginx que las referenciaban se recortaron.
 
 ## Detener y limpiar
 

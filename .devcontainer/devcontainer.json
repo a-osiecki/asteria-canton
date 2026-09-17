@@ -11,7 +11,7 @@
     "memory": "16gb",
     "storage": "32gb"
   },
-  "forwardPorts": [2975, 3975],
+  "forwardPorts": [2975, 3975, 2001, 3001],
   "portsAttributes": {
     "2975": {
       "label": "Canton JSON API (app-user)",
@@ -20,6 +20,16 @@
     },
     "3975": {
       "label": "Canton JSON API (app-provider)",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    },
+    "2001": {
+      "label": "Wallet app-user",
+      "onAutoForward": "silent",
+      "visibility": "public"
+    },
+    "3001": {
+      "label": "Wallet app-provider",
       "onAutoForward": "silent",
       "visibility": "public"
     }
