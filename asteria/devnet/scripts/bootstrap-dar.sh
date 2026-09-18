@@ -24,6 +24,10 @@ for entry in "app-provider:${APP_PROVIDER_JSON_PORT}" "app-user:${APP_USER_JSON_
     -H "Content-Type: application/octet-stream" \
     --data-binary "@${DAR}")"
   if [ "$code" != "200" ] && [ "$code" != "201" ] && [ "$code" != "204" ]; then
+    if grep -q 'KNOWN_PACKAGE_VERSION' /tmp/asteria-dar-upload.out; then
+      echo "El participante ya tiene un package con el mismo nombre y version pero distinto contenido." >&2
+      echo "Corré scripts/reset.sh (o scripts/start.sh sin --keep) y volvé a subir el DAR." >&2
+    fi
     echo "Fallo la subida (HTTP ${code}): $(cat /tmp/asteria-dar-upload.out)" >&2
     exit 1
   fi
