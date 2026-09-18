@@ -137,6 +137,7 @@ En Codespaces abrí esos puertos desde la pestaña Ports. La UI muestra el walle
 `scripts/up-ui.sh` levanta también, vía nginx, un explorer mínimo de las transacciones de Asteria:
 
 - http://localhost:2002 (en Codespaces, el puerto 2002)
+- Alternativa por el puerto de la wallet: http://localhost:2001/explorer/
 
 Muestra las últimas 50 transacciones de las parties `asteria-*` (se puede cambiar la party en el selector) con el detalle de cada evento: template, choice, acting parties, y el `createArgument` (el equivalente al datum de un UTxO), el `choiceArgument` y el `exerciseResult`. Se refresca cada 5 segundos.
 

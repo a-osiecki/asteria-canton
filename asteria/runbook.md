@@ -130,6 +130,7 @@ El CLI **no** lee SQL: el grid sale del ledger. `gridCommand` consulta `POST /v2
 - Cada update se muestra con offset, record time y update ID; y cada transacción como cajas: **consumidos** (rojo, `ExercisedEvent` consuming), **creados** (verde, `CreatedEvent` con su `createArgument`), y acciones no consumidoras (azul). Los desplegables muestran `choiceArgument`, `exerciseResult`, signatories y observers.
 - Se refresca cada 5 segundos.
 - Acepta `?party=<hint>` en la URL (por ejemplo `?party=asteria-pilot-2`) para abrir la vista de un jugador; al cambiar el selector, la URL se actualiza.
+- URL canónica: `http://localhost:2002/?party=...`. Alternativa servida por el puerto de la wallet: `http://localhost:2001/explorer/?party=...` (útil cuando el 2002 no está forwarded en Codespaces).
 
 ## 6. CLI
 
@@ -350,6 +351,7 @@ Para escrituras, el body de `submit-and-wait-for-transaction` va anidado: `{"com
 | No se ve la línea de error en los logs | `--log-immediate-flush=false` | `docker logs --until <StartedAt>` y `docker events` |
 | `KNOWN_PACKAGE_VERSION` al re-subir el DAR | Misma versión recompilada | `reset.sh` y volver a subir |
 | Puerto 2000 ocupado en el Codespace | Otro proceso | Las UIs usan 2001/3001/4001/2002 |
+| 404 de `*.app.github.dev` al abrir un puerto | El puerto no está forwarded en el Codespace | Pestaña Ports → Forward a Port → visibilidad Public; o usar `http://localhost:2001/explorer/?party=...` |
 | `DAML_FAILURE ... AssertionFailed` en `move`/`gather` | Regla del juego (poco combustible, posición incorrecta) | Leer el `exercise_trace`; no es un bug |
 
 ### Espacio en disco
