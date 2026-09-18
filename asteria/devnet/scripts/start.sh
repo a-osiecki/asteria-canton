@@ -69,11 +69,12 @@ fi
 
 "$SCRIPT_DIR/up-ui.sh"
 
-if [ ! -f "$CLI_DIR/dist/index.js" ]; then
-  echo
-  echo ">>> Compilando el CLI"
-  (cd "$CLI_DIR" && npm ci && npm run build)
+echo
+echo ">>> Compilando el CLI"
+if [ ! -d "$CLI_DIR/node_modules" ]; then
+  (cd "$CLI_DIR" && npm ci)
 fi
+(cd "$CLI_DIR" && npm run build)
 
 if [ "$KEEP" = false ]; then
   echo
