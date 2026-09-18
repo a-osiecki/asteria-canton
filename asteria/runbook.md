@@ -197,6 +197,8 @@ scripts/wallet.sh balance
 | Output UTxO = datum + value + script | `CreatedEvent` = `createArgument` (datum) + template + signatories/observers |
 | Input UTxO gastado con redeemer | `ExercisedEvent` consuming sobre el contrato (`choiceArgument`) |
 | Referencia `(txHash, índice)` | `ContractId` (hash con prefijo `00`) |
+| Dirección (script hash) que bloquea el output | No existe: la plantilla y sus `choice` definen cómo se consume |
+| Dirección de pago para recibir valor | Party ID (`hint::namespace`) en los holdings de CC |
 | Set global de UTxOs | ACS, privada por party |
 | Value nativo en el UTxO | El contrato no lleva value; `pot`/`amount` son campos del datum |
 | Redeemer | `choiceArgument` |
