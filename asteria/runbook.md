@@ -399,6 +399,7 @@ scripts/status.sh | scripts/diagnose.sh | scripts/down.sh | scripts/reset.sh
 scripts/bootstrap-dar.sh [ruta.dar]
 scripts/wallet.sh status | tap | balance | preapproval <wallet> | send <from> <to> <amount>
 scripts/jwt.sh [sub] [aud]
+while true; do echo "keepalive $(date)"; sleep 120; done   # ruido para evitar el idle timeout
 
 # CLI
 cd asteria/cli && npm run build
