@@ -205,7 +205,30 @@ scripts/wallet.sh balance
 | Todo público | Solo stakeholders (signatory/observer) ven el contrato |
 | Lista plana de inputs/outputs | Árbol de eventos (ejercicios anidados, ej. `GatherFuel` → `Provide`) |
 
-Identificadores: `ContractId` empieza con `00` y sigue el hash en hex; `updateId` y el namespace de las parties usan multihash (`12` = SHA-256, `20` = 32 bytes).
+Identificadores: `updateId` y el namespace de las parties usan multihash (`12` = SHA-256, `20` = 32 bytes).
+
+### Contract IDs
+
+Un `ContractId` es un identificador opaco que asigna el ledger y se deriva criptográficamente del contrato y de un submission seed. No es una referencia `(txHash, índice)` como en Cardano.
+
+Estructura (V1, la que se ve en esta devnet), 69 bytes / 138 hex:
+
+```
+prefijo   00
+discr.    59fae37f8b45f4ad926acad5742bede922bff9ba3c708c1f90dbf36292808ce7   (32 bytes)
+sufijo    ca12 1220 4d95735366a79137b8dd8d05296456f0ce4e2163789ebe2bbba7a34f2e3acc25
+```
+
+- Prefijo de versión `00` (existe también `01` para IDs locales/autenticados en Canton 3).
+- Discriminador de 32 bytes: SHA-256-HMAC del contenido del contrato, sembrado con un node seed derivado del submission seed. No se puede recomputar sin las seeds.
+- Sufijo opcional (hasta 94 bytes): depende de la versión de protocolo; en esta devnet arranca `ca12` y sigue un multihash SHA-256. Sirve para autenticar el CID contra el contrato (con la metadata/salt que guarda el participant) y no es API pública.
+
+Propiedades del esquema (spec Daml-LF): ordenable por el engine, conmuta con la proyección a un subconjunto de parties, no vinculable sin witness/seeds, y único por submission seed. En la práctica:
+
+- Cada `Move`/`GatherFuel` archiva la nave y crea una instancia con **CID nuevo**: el estado vive en la instancia nueva.
+- El CID no contiene un `txHash`: para el historial se usa el update stream (`/v2/updates` o `asteria tx`).
+- Tratalo como string opaco; no lo parsees (el sufijo cambió entre versiones de protocolo y puede volver a cambiar).
+- `updateId` es otra cosa: multihash `1220` + digest del update.
 
 ## 9. Endpoints
 
